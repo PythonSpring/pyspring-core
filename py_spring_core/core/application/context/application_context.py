@@ -1,3 +1,4 @@
+from abc import ABC
 from inspect import isclass
 from typing import Callable, Mapping, Optional, Type, TypeVar, cast
 
@@ -79,20 +80,72 @@ class ApplicationContext:
                 self.singleton_component_instance_container.keys()
             ),
         )
+    
+    def _validate_duplicate_primary_components(self, component_cls: Type[ABC]) -> None:
+        primary_count = 0
+        subclasses = component_cls.__subclasses__()
+        for component_cls in subclasses:
+            if not issubclass(component_cls, Component):
+                continue
+            if not component_cls.is_primary():
+                continue
+            primary_count += 1
+            if primary_count > 1:
+                raise ValueError(f"[PRIMARY COMPONENT ERROR] Primary component {component_cls.__name__} is already registered")
+            
+    def _get_primary_component_cls(self, component_cls: Type[ABC]) -> Optional[Type[Component]]:
+        subclasses = component_cls.__subclasses__()
+        for component_cls in subclasses:
+            if not issubclass(component_cls, Component):
+                continue
+            if not component_cls.is_primary():
+                continue
+        
+            return component_cls
+    
+    def _determine_target_cls_name(self, component_cls: Type[T]) -> str:
+        """Determine the target class name for a component class.
+        
+        Args:
+            component_cls: The component class to determine the target name for.
+            
+        Returns:
+            str: The name of the target class.
+            
+        Raises:
+            ValueError: If the abstract class has no subclasses or if there are multiple primary components.
+        """
+        if not issubclass(component_cls, ABC):
+            return component_cls.get_name()
+            
+        subclasses = component_cls.__subclasses__()
+        if len(subclasses) == 0:
+            raise ValueError(
+                f"[ABSTRACT CLASS ERROR] Abstract class {component_cls.__name__} has no subclasses"
+            )
+            
+        self._validate_duplicate_primary_components(component_cls)
+        
+        # Try to get primary component first
+        if primary_cls := self._get_primary_component_cls(component_cls):
+            return primary_cls.get_name()
+            
+        # Fall back to first subclass if no primary component exists
+        return subclasses[0].get_name()
 
     def get_component(self, component_cls: Type[T]) -> Optional[T]:
         if not issubclass(component_cls, Component):
             return None
 
-        component_cls_name = component_cls.get_name()
-        if component_cls_name not in self.component_cls_container:
+        target_cls_name: str = self._determine_target_cls_name(component_cls)
+        if target_cls_name not in self.component_cls_container:
             return None
 
         scope = component_cls.get_scope()
         match scope:
             case ComponentScope.Singleton:
                 optional_instance = self.singleton_component_instance_container.get(
-                    component_cls_name
+                    target_cls_name
                 )
                 return cast(T, optional_instance) 
 

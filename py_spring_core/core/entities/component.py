@@ -42,6 +42,7 @@ class Component:
 
     class Config:
         scope: ComponentScope = ComponentScope.Singleton
+        is_primary: bool = False
 
     @classmethod
     def get_name(cls) -> str:
@@ -50,6 +51,10 @@ class Component:
     @classmethod
     def get_component_base(cls) -> "Type[Component]":
         return cls
+
+    @classmethod
+    def is_primary(cls) -> bool:
+        return cls.Config.is_primary
 
     @classmethod
     def get_scope(cls) -> ComponentScope:
