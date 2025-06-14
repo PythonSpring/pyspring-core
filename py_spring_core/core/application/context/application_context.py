@@ -100,29 +100,31 @@ class ApplicationContext:
                 continue
             if not component_cls.is_primary():
                 continue
-        
             return component_cls
     
     def _determine_target_cls_name(self, component_cls: Type[T], qualifier: Optional[str]) -> str:
         """
-        Determine the target class name for a component class.
-        
-        Args:
-            component_cls: The component class to determine the target name for.
-            
-        Returns:
-            str: The name of the target class.
-            
-        Raises:
-            ValueError: If the abstract class has no subclasses or if there are multiple primary components.
+        Determine the target class name for a given component class.
+        This method handles the following cases:
+        1. If a qualifier is provided, return it directly.
+        2. If the component class is not an ABC, return its name directly.
+        3. If the component class is an ABC but has implementations, return its name directly.
+        4. If the component class is an ABC and has no implementations, return the name of the first subclass.
+        5. If the component class is an ABC and has multiple implementations, raise an error.
         """
 
         if qualifier is not None:
             return qualifier
         
+        # If it's not an ABC, return its name directly
         if not issubclass(component_cls, ABC):
             return component_cls.get_name()
+        
+        # If it's an ABC but has implementations, return its name directly
+        if not component_cls.__abstractmethods__:
+            return component_cls.get_name()
             
+        # For abstract classes that need implementations
         subclasses = component_cls.__subclasses__()
         if len(subclasses) == 0:
             raise ValueError(
@@ -134,8 +136,6 @@ class ApplicationContext:
         # Try to get primary component first
         if primary_cls := self._get_primary_component_cls(component_cls):
             return primary_cls.get_name()
-            
-        
             
         # Fall back to first subclass if no primary component exists
         return subclasses[0].get_name()
