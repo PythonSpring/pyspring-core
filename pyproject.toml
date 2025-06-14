@@ -1,7 +1,7 @@
 [project]
 name = "py_spring_core"
 dynamic = ["version"]
-description = "PySpring is a Python web framework inspired by Spring Boot, combining FastAPI, SQLModel, and Pydantic for building scalable web applications with auto dependency injection, configuration management, and a web server."
+description = "PySpring is a Python web framework inspired by Spring Boot, combining FastAPI, and Pydantic for building scalable web applications with auto dependency injection, configuration management, and a web server."
 authors = [
     {name = "William Chen", email = "OW6201231@gmail.com"},
 ]

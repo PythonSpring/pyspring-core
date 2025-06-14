@@ -27,12 +27,6 @@ from py_spring_core.core.entities.controllers.rest_controller import RestControl
 from py_spring_core.core.entities.properties.properties import Properties
 
 
-class ApplicationFileGroups(BaseModel):
-    model_config = ConfigDict(protected_namespaces=())
-    class_files: set[str]
-    model_files: set[str]
-
-
 class PySpringApplication:
     """
     The PySpringApplication class is the main entry point for the PySpring application.
@@ -40,8 +34,6 @@ class PySpringApplication:
 
     The class performs the following key tasks:
     - Initializes the application from a configuration file path
-    - Scans the application source directory for Python files and groups them into class files and model files
-    - Dynamically imports the model modules and creates SQLModel tables
     - Registers application entities (components, controllers, bean collections, properties) with the application context
     - Initializes the application context and injects dependencies
     - Handles the lifecycle of singleton components
@@ -164,7 +156,6 @@ class PySpringApplication:
         self._register_all_entities_from_providers()
         self._register_app_entities(self.scanned_classes)
         self._register_entity_providers(self.entity_providers)
-        self._type_checking()
         self.app_context.load_properties()
         self.app_context.init_ioc_container()
         self.app_context.inject_dependencies_for_app_entities()
@@ -174,15 +165,6 @@ class PySpringApplication:
 
         self._init_providers(self.entity_providers)
         self._handle_singleton_components_life_cycle(ComponentLifeCycle.Init)
-
-    def _type_checking(self) -> None:
-        optional_error = self.type_checking_service.type_checking()
-        if optional_error is not None:
-            match (self.app_config.type_checking_mode):
-                case TypeCheckingMode.Strict:
-                    raise optional_error
-                case TypeCheckingMode.Basic:
-                    logger.warning(optional_error)
 
     def _handle_singleton_components_life_cycle(
         self, life_cycle: ComponentLifeCycle
