@@ -164,7 +164,6 @@ class PySpringApplication:
         self._register_all_entities_from_providers()
         self._register_app_entities(self.scanned_classes)
         self._register_entity_providers(self.entity_providers)
-        self._type_checking()
         self.app_context.load_properties()
         self.app_context.init_ioc_container()
         self.app_context.inject_dependencies_for_app_entities()
@@ -174,15 +173,6 @@ class PySpringApplication:
 
         self._init_providers(self.entity_providers)
         self._handle_singleton_components_life_cycle(ComponentLifeCycle.Init)
-
-    def _type_checking(self) -> None:
-        optional_error = self.type_checking_service.type_checking()
-        if optional_error is not None:
-            match (self.app_config.type_checking_mode):
-                case TypeCheckingMode.Strict:
-                    raise optional_error
-                case TypeCheckingMode.Basic:
-                    logger.warning(optional_error)
 
     def _handle_singleton_components_life_cycle(
         self, life_cycle: ComponentLifeCycle
