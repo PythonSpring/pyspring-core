@@ -196,8 +196,9 @@ class ApplicationContext:
             raise TypeError(
                 f"[COMPONENT REGISTRATION ERROR] Component: {component_cls} is not a subclass of Component"
             )
-
         component_cls_name = component_cls.get_name()
+        if component_cls_name in self.component_cls_container:
+            raise ValueError(f"[COMPONENT REGISTRATION ERROR] Component: {component_cls_name} already registered")
         self.component_cls_container[component_cls_name] = component_cls
 
     def register_controller(self, controller_cls: Type[RestController]) -> None:
