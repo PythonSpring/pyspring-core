@@ -126,7 +126,7 @@ class TestApplicationContext:
         app_context.singleton_component_instance_container["TestComponent"] = (
             component_instance
         )
-        retrieved_component = app_context.get_component(TestComponent)
+        retrieved_component = app_context.get_component(TestComponent, None)
         assert retrieved_component is component_instance
 
         # Test retrieving singleton beans
@@ -134,7 +134,7 @@ class TestApplicationContext:
         app_context.singleton_bean_instance_container["TestBeanCollection"] = (
             bean_instance
         )
-        retrieved_bean = app_context.get_bean(TestBeanCollection)
+        retrieved_bean = app_context.get_bean(TestBeanCollection, None)
         assert retrieved_bean is bean_instance
 
         # Test retrieving singleton properties
