@@ -81,27 +81,6 @@ class ApplicationContext:
             ),
         )
     
-    def _validate_duplicate_primary_components(self, component_cls: Type[ABC]) -> None:
-        primary_count = 0
-        subclasses = component_cls.__subclasses__()
-        for component_cls in subclasses:
-            if not issubclass(component_cls, Component):
-                continue
-            if not component_cls.is_primary():
-                continue
-            primary_count += 1
-            if primary_count > 1:
-                raise ValueError(f"[PRIMARY COMPONENT ERROR] Primary component {component_cls.__name__} is already registered")
-            
-    def _get_primary_component_cls(self, component_cls: Type[ABC]) -> Optional[Type[Component]]:
-        subclasses = component_cls.__subclasses__()
-        for component_cls in subclasses:
-            if not issubclass(component_cls, Component):
-                continue
-            if not component_cls.is_primary():
-                continue
-            return component_cls
-    
     def _determine_target_cls_name(self, component_cls: Type[T], qualifier: Optional[str]) -> str:
         """
         Determine the target class name for a given component class.
@@ -130,13 +109,8 @@ class ApplicationContext:
             raise ValueError(
                 f"[ABSTRACT CLASS ERROR] Abstract class {component_cls.__name__} has no subclasses"
             )
-            
-        self._validate_duplicate_primary_components(component_cls)
         
-        # Try to get primary component first
-        if primary_cls := self._get_primary_component_cls(component_cls):
-            return primary_cls.get_name()
-            
+        
         # Fall back to first subclass if no primary component exists
         return subclasses[0].get_name()
 
@@ -372,7 +346,6 @@ class ApplicationContext:
                     f"[DEPENDENCY INJECTION SUCCESS FROM COMPONENT CONTAINER] Inject dependency for {annotated_entity_cls.__name__} in attribute: {attr_name} with dependency: {annotated_entity_cls.__name__} singleton instance"
                 )
                 continue
-
             error_message = f"[DEPENDENCY INJECTION FAILED] Fail to inject dependency for attribute: {attr_name} with dependency: {annotated_entity_cls.__name__} with qualifier: {qualifier}, consider register such depency with Compoent decorator"
             logger.critical(error_message)
             raise ValueError(error_message)
