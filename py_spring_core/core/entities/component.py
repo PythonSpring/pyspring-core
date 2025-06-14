@@ -41,11 +41,14 @@ class Component:
     """
 
     class Config:
+        name: str = ""
         scope: ComponentScope = ComponentScope.Singleton
         is_primary: bool = False
 
     @classmethod
     def get_name(cls) -> str:
+        if hasattr(cls.Config, "name") and cls.Config.name:
+            return cls.Config.name
         return cls.__name__
 
     @classmethod

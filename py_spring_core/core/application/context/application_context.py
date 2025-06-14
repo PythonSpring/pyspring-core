@@ -1,6 +1,6 @@
 from abc import ABC
 from inspect import isclass
-from typing import Callable, Mapping, Optional, Type, TypeVar, cast
+from typing import Annotated, Callable, Mapping, Optional, Type, TypeVar, cast, get_origin, get_args
 
 from loguru import logger
 from pydantic import BaseModel
@@ -103,8 +103,9 @@ class ApplicationContext:
         
             return component_cls
     
-    def _determine_target_cls_name(self, component_cls: Type[T]) -> str:
-        """Determine the target class name for a component class.
+    def _determine_target_cls_name(self, component_cls: Type[T], qualifier: Optional[str]) -> str:
+        """
+        Determine the target class name for a component class.
         
         Args:
             component_cls: The component class to determine the target name for.
@@ -115,6 +116,10 @@ class ApplicationContext:
         Raises:
             ValueError: If the abstract class has no subclasses or if there are multiple primary components.
         """
+
+        if qualifier is not None:
+            return qualifier
+        
         if not issubclass(component_cls, ABC):
             return component_cls.get_name()
             
@@ -130,14 +135,17 @@ class ApplicationContext:
         if primary_cls := self._get_primary_component_cls(component_cls):
             return primary_cls.get_name()
             
+        
+            
         # Fall back to first subclass if no primary component exists
         return subclasses[0].get_name()
 
-    def get_component(self, component_cls: Type[T]) -> Optional[T]:
-        if not issubclass(component_cls, Component):
+    def get_component(self, component_cls: Type[T], qualifier: Optional[str]) -> Optional[T]:
+        if not issubclass(component_cls, (Component, ABC)):
             return None
 
-        target_cls_name: str = self._determine_target_cls_name(component_cls)
+        target_cls_name: str = self._determine_target_cls_name(component_cls, qualifier)
+
         if target_cls_name not in self.component_cls_container:
             return None
 
@@ -166,7 +174,7 @@ class ApplicationContext:
             or is_within_properties
         )
 
-    def get_bean(self, object_cls: Type[T]) -> Optional[T]:
+    def get_bean(self, object_cls: Type[T], qualifier: Optional[str]) -> Optional[T]:
         bean_name = object_cls.__name__
         if bean_name not in self.singleton_bean_instance_container:
             return None
@@ -263,6 +271,20 @@ class ApplicationContext:
             self.singleton_properties_instance_container
         )
 
+    def init_singleton_component(self, component_cls: Type[Component], component_cls_name: str) -> Optional[Component]:
+        instance: Optional[Component] = None
+        try:
+            instance = component_cls()
+        except Exception as error:
+            unable_to_init_component_error_prefix = "Can't instantiate abstract class"
+            if unable_to_init_component_error_prefix in str(error):
+                logger.warning(f"[INITIALIZING SINGLETON COMPONENT ERROR] Skip initializing singleton component: {component_cls_name} because it is an abstract class")
+                return
+            logger.error(f"[INITIALIZING SINGLETON COMPONENT ERROR] Error initializing singleton component: {component_cls_name} with error: {error}")
+            raise error
+        
+        return instance
+
     def init_ioc_container(self) -> None:
         """
         Initializes the IoC (Inversion of Control) container by creating singleton instances of all registered components.
@@ -278,7 +300,9 @@ class ApplicationContext:
             logger.debug(
                 f"[INITIALIZING SINGLETON COMPONENT] Init singleton component: {component_cls_name}"
             )
-            instance = component_cls()
+            instance = self.init_singleton_component(component_cls, component_cls_name)
+            if instance is None:
+                continue
             self.singleton_component_instance_container[component_cls_name] = instance
 
         # for Bean
@@ -307,15 +331,21 @@ class ApplicationContext:
     def _inject_entity_dependencies(self, entity: Type[AppEntities]) -> None:
         for attr_name, annotated_entity_cls in entity.__annotations__.items():
             is_injected: bool = False
+            # Handle Annotated types
+            qualifier: Optional[str] = None
+            if get_origin(annotated_entity_cls) is Annotated:
+                annotated_entity_cls, qualifier_found = get_args(annotated_entity_cls)
+                if qualifier_found:
+                    qualifier = qualifier_found
             if annotated_entity_cls in self.primitive_types:
                 logger.warning(
                     f"[DEPENDENCY INJECTION SKIPPED] Skip inject dependency for attribute: {attr_name} with dependency: {annotated_entity_cls.__name__} because it is primitive type"
                 )
                 continue
-
             if not isclass(annotated_entity_cls):
                 continue
 
+            
             if issubclass(annotated_entity_cls, Properties):
                 optional_properties = self.get_properties(annotated_entity_cls)
                 if optional_properties is None:
@@ -325,10 +355,12 @@ class ApplicationContext:
                 setattr(entity, attr_name, optional_properties)
                 continue
 
-            entity_getters: list[Callable] = [self.get_component, self.get_bean]
+            entity_getters: list[Callable[[Type[AppEntities], Optional[str]], Optional[AppEntities]]] = [
+                self.get_component, self.get_bean
+            ]
 
             for getter in entity_getters:
-                optional_entity = getter(annotated_entity_cls)
+                optional_entity = getter(annotated_entity_cls, qualifier)
                 if optional_entity is not None:
                     setattr(entity, attr_name, optional_entity)
                     is_injected = True
@@ -340,7 +372,7 @@ class ApplicationContext:
                 )
                 continue
 
-            error_message = f"[DEPENDENCY INJECTION FAILED] Fail to inject dependency for attribute: {attr_name} with dependency: {annotated_entity_cls.__name__}, consider register such depency with Compoent decorator"
+            error_message = f"[DEPENDENCY INJECTION FAILED] Fail to inject dependency for attribute: {attr_name} with dependency: {annotated_entity_cls.__name__} with qualifier: {qualifier}, consider register such depency with Compoent decorator"
             logger.critical(error_message)
             raise ValueError(error_message)
 
