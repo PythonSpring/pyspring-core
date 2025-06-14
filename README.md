@@ -1,6 +1,6 @@
 # **PySpring** Framework
 
-#### **PySpring** is a Python web framework inspired by Spring Boot. It combines FastAPI for the web layer, SQLModel for ORM, and Pydantic for data validation. PySpring provides a structured approach to building scalable web applications with `auto dependency injection`, `auto configuration management` and a `web server` for hosting your application.
+#### **PySpring** is a Python web framework inspired by Spring Boot. It combines FastAPI for the web layer, and Pydantic for data validation. PySpring provides a structured approach to building scalable web applications with `auto dependency injection`, `auto configuration management` and a `web server` for hosting your application.
 
 ## Key Features
 - **Application Initialization**: `PySpringApplication` class serves as the main entry point for the **PySpring** application. It initializes the application from a configuration file, scans the application source directory for Python files, and groups them into class files and model files.
