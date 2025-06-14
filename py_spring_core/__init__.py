@@ -5,4 +5,4 @@ from py_spring_core.core.entities.controllers.rest_controller import RestControl
 from py_spring_core.core.entities.properties.properties import Properties
 from py_spring_core.core.entities.entity_provider import EntityProvider
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"
