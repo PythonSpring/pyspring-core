@@ -184,7 +184,11 @@ class PySpringApplication:
     def __init_controllers(self) -> None:
         controllers = self.app_context.get_controller_instances()
         for controller in controllers:
-            controller.register_routes()
+            name = controller.__class__.__name__
+            routes = RouteMapping.routes.get(name, None)
+            if routes is None:
+                continue
+            controller._register_routes(routes)
             router = controller.get_router()
             self.fastapi.include_router(router)
             controller.register_middlewares()

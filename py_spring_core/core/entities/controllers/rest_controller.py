@@ -1,4 +1,7 @@
 from fastapi import APIRouter, FastAPI
+from functools import partial
+
+from py_spring_core.core.entities.controllers.route_mapping import RouteRegistration
 
 
 class RestController:
@@ -20,7 +23,10 @@ class RestController:
     class Config:
         prefix: str = ""
 
-    def register_routes(self) -> None: ...
+    def _register_routes(self, routes: list[RouteRegistration]) -> None:
+        for route in routes:
+            bound_method = partial(route.func, self)
+            self.router.add_api_route(route.path, bound_method, methods=[route.method.value])
 
     def register_middlewares(self) -> None: ...
 
