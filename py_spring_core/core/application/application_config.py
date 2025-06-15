@@ -21,11 +21,6 @@ class ServerConfig(BaseModel):
     port: int
     enabled: bool = Field(default=True)
 
-class TypeCheckingMode(str, Enum):
-    """Basic will only warning the user, strict will raise an error"""
-    Basic = "basic"
-    Strict = "strict"
-
 class ApplicationConfig(BaseModel):
     """
     Represents the configuration for the application.
@@ -44,8 +39,6 @@ class ApplicationConfig(BaseModel):
     server_config: ServerConfig
     properties_file_path: str
     loguru_config: LoguruConfig
-    type_checking_mode: TypeCheckingMode
-
 
 class ApplicationConfigRepository(JsonConfigRepository[ApplicationConfig]):
     """

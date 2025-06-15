@@ -14,7 +14,7 @@ from py_spring_core.commons.config_file_template_generator.config_file_template_
     ConfigFileTemplateGenerator,
 )
 from py_spring_core.commons.file_path_scanner import FilePathScanner
-from py_spring_core.core.application.application_config import ApplicationConfigRepository, TypeCheckingMode
+from py_spring_core.core.application.application_config import ApplicationConfigRepository
 from py_spring_core.core.application.context.application_context import (
     ApplicationContext,
 )
