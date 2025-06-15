@@ -1,13 +1,13 @@
 from abc import ABC
-import pytest
 from typing import Annotated
+
+import pytest
 
 from py_spring_core.core.application.context.application_context import (
     ApplicationContext,
-    ApplicationContextConfig
+    ApplicationContextConfig,
 )
-from py_spring_core.core.entities.component import Component
-from py_spring_core.core.entities.component import ComponentScope
+from py_spring_core.core.entities.component import Component, ComponentScope
 
 
 class TestComponentFeatures:
@@ -32,6 +32,7 @@ class TestComponentFeatures:
         The test creates an abstract service with two implementations and verifies
         that each can be injected into a consumer using appropriate qualifiers.
         """
+
         # Define abstract base class
         class AbstractService(Component):
             class Config:
@@ -92,6 +93,7 @@ class TestComponentFeatures:
         The test attempts to register the same component twice and verifies
         that an appropriate error is raised.
         """
+
         # Define a component
         class TestService(Component):
             class Config:
@@ -106,7 +108,10 @@ class TestComponentFeatures:
         app_context.init_ioc_container()
 
         # Attempt to register same component again should raise error
-        with pytest.raises(ValueError, match="\\[COMPONENT REGISTRATION ERROR\\] Component: TestService already registered"):
+        with pytest.raises(
+            ValueError,
+            match="\\[COMPONENT REGISTRATION ERROR\\] Component: TestService already registered",
+        ):
             app_context.register_component(TestService)
             app_context.init_ioc_container()
 
@@ -122,6 +127,7 @@ class TestComponentFeatures:
         The test registers a component with a custom name and verifies
         that it is correctly stored in the container.
         """
+
         # Define component with custom name
         class TestService(Component):
             class Config:
@@ -151,6 +157,7 @@ class TestComponentFeatures:
         The test attempts to inject a component using a non-existent qualifier
         and verifies that an appropriate error is raised.
         """
+
         # Define abstract base class
         class AbstractService(Component):
             class Config:
@@ -185,5 +192,8 @@ class TestComponentFeatures:
         app_context.init_ioc_container()  # Initialize the consumer component
 
         # Attempting to inject with invalid qualifier should raise error
-        with pytest.raises(ValueError, match="\\[DEPENDENCY INJECTION FAILED\\] Fail to inject dependency for attribute: service with dependency: AbstractService with qualifier: NonExistentService"):
-            app_context.inject_dependencies_for_app_entities() 
+        with pytest.raises(
+            ValueError,
+            match="\\[DEPENDENCY INJECTION FAILED\\] Fail to inject dependency for attribute: service with dependency: AbstractService with qualifier: NonExistentService",
+        ):
+            app_context.inject_dependencies_for_app_entities()
