@@ -1,5 +1,5 @@
 import json
-from typing import Callable, Optional, Type
+from typing import Any, Callable, Optional, Type
 
 import cachetools
 import yaml
@@ -32,7 +32,7 @@ class _PropertiesLoader:
         self.properties_classes = properties_classes
         self.properties_class_map = self._load_classes_as_map()
 
-        self.extension_loader_lookup:dict[str, Callable[[str], dict]] = {
+        self.extension_loader_lookup:dict[str, Callable[[str], dict[str, Any]]] = {
             "json": json.loads,
             "yaml": yaml.safe_load,
             "yml": yaml.safe_load,
