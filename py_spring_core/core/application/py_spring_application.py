@@ -4,17 +4,17 @@ from typing import Any, Callable, Iterable, Type
 import uvicorn
 from fastapi import APIRouter, FastAPI
 from loguru import logger
-from pydantic import BaseModel, ConfigDict
 
-from py_spring_core.commons.type_checking_service import TypeCheckingService
-from py_spring_core.core.application.commons import AppEntities
-from py_spring_core.core.entities.entity_provider import EntityProvider
 from py_spring_core.commons.class_scanner import ClassScanner
 from py_spring_core.commons.config_file_template_generator.config_file_template_generator import (
     ConfigFileTemplateGenerator,
 )
 from py_spring_core.commons.file_path_scanner import FilePathScanner
-from py_spring_core.core.application.application_config import ApplicationConfigRepository
+from py_spring_core.commons.type_checking_service import TypeCheckingService
+from py_spring_core.core.application.application_config import (
+    ApplicationConfigRepository,
+)
+from py_spring_core.core.application.commons import AppEntities
 from py_spring_core.core.application.context.application_context import (
     ApplicationContext,
 )
@@ -24,6 +24,8 @@ from py_spring_core.core.application.context.application_context_config import (
 from py_spring_core.core.entities.bean_collection import BeanCollection
 from py_spring_core.core.entities.component import Component, ComponentLifeCycle
 from py_spring_core.core.entities.controllers.rest_controller import RestController
+from py_spring_core.core.entities.controllers.route_mapping import RouteMapping
+from py_spring_core.core.entities.entity_provider import EntityProvider
 from py_spring_core.core.entities.properties.properties import Properties
 
 
@@ -83,7 +85,9 @@ class PySpringApplication:
             BeanCollection: self._handle_register_bean_collection,
             Properties: self._handle_register_properties,
         }
-        self.type_checking_service = TypeCheckingService(self.app_config.app_src_target_dir)
+        self.type_checking_service = TypeCheckingService(
+            self.app_config.app_src_target_dir
+        )
 
     def __configure_logging(self):
         """Applies the logging configuration using Loguru."""

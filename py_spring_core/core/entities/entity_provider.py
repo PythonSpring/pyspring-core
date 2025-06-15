@@ -1,4 +1,4 @@
-from dataclasses import field, dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional, Type
 
 from py_spring_core.core.application.commons import AppEntities
