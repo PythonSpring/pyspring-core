@@ -1,9 +1,8 @@
 from enum import Enum
+
 from pydantic import BaseModel, ConfigDict, Field
 
-from py_spring_core.commons.json_config_repository import (
-    JsonConfigRepository,
-)
+from py_spring_core.commons.json_config_repository import JsonConfigRepository
 from py_spring_core.core.application.loguru_config import LoguruConfig
 
 
@@ -20,6 +19,7 @@ class ServerConfig(BaseModel):
     host: str
     port: int
     enabled: bool = Field(default=True)
+
 
 class ApplicationConfig(BaseModel):
     """
@@ -39,6 +39,7 @@ class ApplicationConfig(BaseModel):
     server_config: ServerConfig
     properties_file_path: str
     loguru_config: LoguruConfig
+
 
 class ApplicationConfigRepository(JsonConfigRepository[ApplicationConfig]):
     """

@@ -1,18 +1,21 @@
-from enum import Enum
 import subprocess
+from enum import Enum
 from typing import Optional
+
 from loguru import logger
 
 
 class MypyTypeCheckingError(str, Enum):
     NoUntypedDefs = "no-untyped-def"
 
+
 class TypeCheckingErrorr(Exception): ...
+
 
 class TypeCheckingService:
     def __init__(self, target_folder: str) -> None:
         self.target_folder = target_folder
-        self.checking_command = ['mypy', '--disallow-untyped-defs', self.target_folder]
+        self.checking_command = ["mypy", "--disallow-untyped-defs", self.target_folder]
         self.target_typing_errors: list[MypyTypeCheckingError] = [
             MypyTypeCheckingError.NoUntypedDefs
         ]
@@ -23,8 +26,8 @@ class TypeCheckingService:
         result = subprocess.run(
             self.checking_command,
             capture_output=True,  # Captures both stdout and stderr
-            text=True,            # Ensures output is returned as a string
-            check=False           # Avoids raising an exception on non-zero exit code
+            text=True,  # Ensures output is returned as a string
+            check=False,  # Avoids raising an exception on non-zero exit code
         )
         std_err_lines = result.stderr.split("\n")
         std_out_lines = result.stdout.split("\n")

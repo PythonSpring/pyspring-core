@@ -24,14 +24,14 @@ class JsonConfigRepository(Generic[T]):
     """
 
     def __init__(self, file_path: str, target_key: Optional[str] = None) -> None:
-        self.base_model_cls: Type[T] = self.__class__._get_model_cls() 
+        self.base_model_cls: Type[T] = self.__class__._get_model_cls()
         self.file_path = file_path
         self.target_key = target_key
         self._config: T = self._load_config()
 
     @classmethod
     def _get_model_cls(cls) -> Type[T]:
-        return get_args(cls.__orig_bases__[0])[0] # type: ignore
+        return get_args(cls.__orig_bases__[0])[0]  # type: ignore
 
     def get_config(self) -> T:
         return self._config
@@ -41,12 +41,12 @@ class JsonConfigRepository(Generic[T]):
 
     def save_config(self) -> None:
         is_the_same_class = (
-            self._config.__class__.__name__ == self.base_model_cls.__name__ 
-        )  
+            self._config.__class__.__name__ == self.base_model_cls.__name__
+        )
         if not is_the_same_class:
             raise TypeError(
-                f"[BASE MODEL CLASS TYPE MISMATCH] Base model class of current repository: {self.base_model_cls.__name__} mismatch with config class: {self._config.__class__.__name__}" 
-            ) 
+                f"[BASE MODEL CLASS TYPE MISMATCH] Base model class of current repository: {self.base_model_cls.__name__} mismatch with config class: {self._config.__class__.__name__}"
+            )
         with open(self.file_path, "w") as file:
             file.write(self._config.model_dump_json(indent=4))
 

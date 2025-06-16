@@ -1,6 +1,16 @@
 from abc import ABC
 from inspect import isclass
-from typing import Annotated, Callable, Mapping, Optional, Type, TypeVar, cast, get_origin, get_args
+from typing import (
+    Annotated,
+    Callable,
+    Mapping,
+    Optional,
+    Type,
+    TypeVar,
+    cast,
+    get_args,
+    get_origin,
+)
 
 from loguru import logger
 from pydantic import BaseModel
@@ -19,7 +29,6 @@ from py_spring_core.core.entities.controllers.rest_controller import RestControl
 from py_spring_core.core.entities.entity_provider import EntityProvider
 from py_spring_core.core.entities.properties.properties import Properties
 from py_spring_core.core.entities.properties.properties_loader import _PropertiesLoader
-
 
 T = TypeVar("T", bound=AppEntities)
 PT = TypeVar("PT", bound=Properties)
@@ -80,8 +89,10 @@ class ApplicationContext:
                 self.singleton_component_instance_container.keys()
             ),
         )
-    
-    def _determine_target_cls_name(self, component_cls: Type[T], qualifier: Optional[str]) -> str:
+
+    def _determine_target_cls_name(
+        self, component_cls: Type[T], qualifier: Optional[str]
+    ) -> str:
         """
         Determine the target class name for a given component class.
         This method handles the following cases:
@@ -94,27 +105,28 @@ class ApplicationContext:
 
         if qualifier is not None:
             return qualifier
-        
+
         # If it's not an ABC, return its name directly
         if not issubclass(component_cls, ABC):
             return component_cls.get_name()
-        
+
         # If it's an ABC but has implementations, return its name directly
         if not component_cls.__abstractmethods__:
             return component_cls.get_name()
-            
+
         # For abstract classes that need implementations
         subclasses = component_cls.__subclasses__()
         if len(subclasses) == 0:
             raise ValueError(
                 f"[ABSTRACT CLASS ERROR] Abstract class {component_cls.__name__} has no subclasses"
             )
-        
-        
+
         # Fall back to first subclass if no primary component exists
         return subclasses[0].get_name()
 
-    def get_component(self, component_cls: Type[T], qualifier: Optional[str]) -> Optional[T]:
+    def get_component(
+        self, component_cls: Type[T], qualifier: Optional[str]
+    ) -> Optional[T]:
         if not issubclass(component_cls, (Component, ABC)):
             return None
 
@@ -129,7 +141,7 @@ class ApplicationContext:
                 optional_instance = self.singleton_component_instance_container.get(
                     target_cls_name
                 )
-                return cast(T, optional_instance) 
+                return cast(T, optional_instance)
 
             case ComponentScope.Prototype:
                 prototype_instance = component_cls()
@@ -172,7 +184,9 @@ class ApplicationContext:
             )
         component_cls_name = component_cls.get_name()
         if component_cls_name in self.component_cls_container:
-            raise ValueError(f"[COMPONENT REGISTRATION ERROR] Component: {component_cls_name} already registered")
+            raise ValueError(
+                f"[COMPONENT REGISTRATION ERROR] Component: {component_cls_name} already registered"
+            )
         self.component_cls_container[component_cls_name] = component_cls
 
     def register_controller(self, controller_cls: Type[RestController]) -> None:
@@ -205,8 +219,6 @@ class ApplicationContext:
             elif issubclass(entity_cls, Properties):
                 self.register_properties(entity_cls)
 
-            
-    
     def register_properties(self, properties_cls: Type[Properties]) -> None:
         if not issubclass(properties_cls, Properties):
             raise TypeError(
@@ -246,18 +258,24 @@ class ApplicationContext:
             self.singleton_properties_instance_container
         )
 
-    def init_singleton_component(self, component_cls: Type[Component], component_cls_name: str) -> Optional[Component]:
+    def init_singleton_component(
+        self, component_cls: Type[Component], component_cls_name: str
+    ) -> Optional[Component]:
         instance: Optional[Component] = None
         try:
             instance = component_cls()
         except Exception as error:
             unable_to_init_component_error_prefix = "Can't instantiate abstract class"
             if unable_to_init_component_error_prefix in str(error):
-                logger.warning(f"[INITIALIZING SINGLETON COMPONENT ERROR] Skip initializing singleton component: {component_cls_name} because it is an abstract class")
+                logger.warning(
+                    f"[INITIALIZING SINGLETON COMPONENT ERROR] Skip initializing singleton component: {component_cls_name} because it is an abstract class"
+                )
                 return
-            logger.error(f"[INITIALIZING SINGLETON COMPONENT ERROR] Error initializing singleton component: {component_cls_name} with error: {error}")
+            logger.error(
+                f"[INITIALIZING SINGLETON COMPONENT ERROR] Error initializing singleton component: {component_cls_name} with error: {error}"
+            )
             raise error
-        
+
         return instance
 
     def init_ioc_container(self) -> None:
@@ -320,7 +338,6 @@ class ApplicationContext:
             if not isclass(annotated_entity_cls):
                 continue
 
-            
             if issubclass(annotated_entity_cls, Properties):
                 optional_properties = self.get_properties(annotated_entity_cls)
                 if optional_properties is None:
@@ -330,9 +347,9 @@ class ApplicationContext:
                 setattr(entity, attr_name, optional_properties)
                 continue
 
-            entity_getters: list[Callable[[Type[AppEntities], Optional[str]], Optional[AppEntities]]] = [
-                self.get_component, self.get_bean
-            ]
+            entity_getters: list[
+                Callable[[Type[AppEntities], Optional[str]], Optional[AppEntities]]
+            ] = [self.get_component, self.get_bean]
 
             for getter in entity_getters:
                 optional_entity = getter(annotated_entity_cls, qualifier)
