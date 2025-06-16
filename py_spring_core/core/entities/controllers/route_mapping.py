@@ -14,6 +14,7 @@ class HTTPMethod(str, Enum):
 
 
 class RouteRegistration(BaseModel):
+    class_name: str
     method: HTTPMethod
     path: str
     func: Callable
@@ -31,17 +32,17 @@ class RouteMapping:
 
     @classmethod
     def register_route(cls, route_registration: RouteRegistration) -> None:
-        class_name = route_registration.func.__qualname__.split(".")[0]
-        optional_routes = cls.routes.get(class_name, None)
+        optional_routes = cls.routes.get(route_registration.class_name, None)
         if optional_routes is None:
-            cls.routes[class_name] = set()
-        cls.routes[class_name].add(route_registration)
+            cls.routes[route_registration.class_name] = set()
+        cls.routes[route_registration.class_name].add(route_registration)
 
 
 def _create_route_decorator(method: HTTPMethod):
     def decorator_factory(path: str):
         def decorator(func: Callable):
-            route_registration = RouteRegistration(method=method, path=path, func=func)
+            class_name = func.__qualname__.split(".")[0]
+            route_registration = RouteRegistration(class_name=class_name, method=method, path=path, func=func)
             RouteMapping.register_route(route_registration)
             @wraps(func)
             def wrapper(*args: Any, **kwargs: Any):
