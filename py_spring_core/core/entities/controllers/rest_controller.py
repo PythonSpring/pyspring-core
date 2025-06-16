@@ -26,7 +26,12 @@ class RestController:
     def _register_routes(self, routes: list[RouteRegistration]) -> None:
         for route in routes:
             bound_method = partial(route.func, self)
-            self.router.add_api_route(route.path, bound_method, methods=[route.method.value])
+            self.router.add_api_route(
+                route.path, 
+                bound_method, methods=[route.method.value],
+                description=route.func.__doc__,
+                summary=route.func.__name__
+            )
 
     def register_middlewares(self) -> None: ...
 
