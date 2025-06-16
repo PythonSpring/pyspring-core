@@ -27,8 +27,8 @@ class RestController:
         for route in routes:
             bound_method = partial(route.func, self)
             self.router.add_api_route(
-                route.path,
-                bound_method,
+                path=route.path,
+                endpoint=bound_method,
                 methods=[route.method.value],
                 response_model=route.response_model,
                 status_code=route.status_code,
