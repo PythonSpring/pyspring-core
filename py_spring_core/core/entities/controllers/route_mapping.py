@@ -41,9 +41,10 @@ class RouteRegistration(BaseModel):
         if not isinstance(other, RouteRegistration):
             return False
         return self.method == other.method and self.path == other.path
-    
+
     def __hash__(self) -> int:
         return hash((self.method, self.path))
+
 
 class RouteMapping:
     routes: dict[str, set[RouteRegistration]] = {}
@@ -106,6 +107,7 @@ def _create_route_decorator(method: HTTPMethod):
                 name=name,
             )
             RouteMapping.register_route(route_registration)
+
             @wraps(func)
             def wrapper(*args: Any, **kwargs: Any):
                 return func(*args, **kwargs)
