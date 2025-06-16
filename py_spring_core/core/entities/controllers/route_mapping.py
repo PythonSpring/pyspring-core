@@ -22,10 +22,12 @@ class RouteRegistration(BaseModel):
         if not isinstance(other, RouteRegistration):
             return False
         return self.method == other.method and self.path == other.path
-
+    
+    def __hash__(self) -> int:
+        return hash((self.method, self.path))
 
 class RouteMapping:
-    routes: dict[str, list[RouteRegistration]] = {}
+    routes: dict[str, set[RouteRegistration]] = {}
 
 
 def _create_route_decorator(method: HTTPMethod):
@@ -34,10 +36,10 @@ def _create_route_decorator(method: HTTPMethod):
             class_name = func.__qualname__.split(".")[0]
             optional_routes = RouteMapping.routes.get(class_name, None)
             if optional_routes is None:
-                RouteMapping.routes[class_name] = list()
+                RouteMapping.routes[class_name] = set()
             route_registration = RouteRegistration(method=method, path=path, func=func)
             if route_registration not in RouteMapping.routes[class_name]:
-                RouteMapping.routes[class_name].append(route_registration)
+                RouteMapping.routes[class_name].add(route_registration)
 
             @wraps(func)
             def wrapper(*args: Any, **kwargs: Any):
