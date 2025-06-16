@@ -12,4 +12,4 @@ from py_spring_core.core.entities.controllers.route_mapping import (
 from py_spring_core.core.entities.entity_provider import EntityProvider
 from py_spring_core.core.entities.properties.properties import Properties
 
-__version__ = "0.0.9"
+__version__ = "0.0.10"
