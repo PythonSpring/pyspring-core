@@ -29,18 +29,20 @@ class RouteRegistration(BaseModel):
 class RouteMapping:
     routes: dict[str, set[RouteRegistration]] = {}
 
+    @classmethod
+    def register_route(cls, route_registration: RouteRegistration) -> None:
+        class_name = route_registration.func.__qualname__.split(".")[0]
+        optional_routes = cls.routes.get(class_name, None)
+        if optional_routes is None:
+            cls.routes[class_name] = set()
+        cls.routes[class_name].add(route_registration)
+
 
 def _create_route_decorator(method: HTTPMethod):
     def decorator_factory(path: str):
         def decorator(func: Callable):
-            class_name = func.__qualname__.split(".")[0]
-            optional_routes = RouteMapping.routes.get(class_name, None)
-            if optional_routes is None:
-                RouteMapping.routes[class_name] = set()
             route_registration = RouteRegistration(method=method, path=path, func=func)
-            if route_registration not in RouteMapping.routes[class_name]:
-                RouteMapping.routes[class_name].add(route_registration)
-
+            RouteMapping.register_route(route_registration)
             @wraps(func)
             def wrapper(*args: Any, **kwargs: Any):
                 return func(*args, **kwargs)
