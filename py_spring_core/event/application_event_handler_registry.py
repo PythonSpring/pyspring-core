@@ -17,6 +17,9 @@ def EventListener(event_type: Type[ApplicationEvent]) -> Callable:
     It is responsible for binding an event handler to a component and a function.
     """
     def decorator(func: EventHandlerT) -> None:
+        if not issubclass(event_type, ApplicationEvent):
+            raise ValueError(f"Event type must be a subclass of ApplicationEvent")
+
         ApplicationEventHandlerRegistry.register_event_handler(event_type, func)
     return decorator
 
