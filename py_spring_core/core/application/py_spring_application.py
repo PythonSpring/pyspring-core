@@ -28,6 +28,7 @@ from py_spring_core.core.entities.controllers.route_mapping import RouteMapping
 from py_spring_core.core.entities.entity_provider import EntityProvider
 from py_spring_core.core.entities.properties.properties import Properties
 from py_spring_core.core.interfaces.application_context_required import ApplicationContextRequired
+from py_spring_core.event.application_event_handler_registry import ApplicationEventHandlerRegistry
 from py_spring_core.event.application_event_publisher import ApplicationEventPublisher
 
 
@@ -107,7 +108,8 @@ class PySpringApplication:
 
     def _get_system_managed_classes(self) -> Iterable[Type[Component]]:
         return [
-            ApplicationEventPublisher
+            ApplicationEventPublisher,
+            ApplicationEventHandlerRegistry
         ]
 
     def _scan_classes_for_project(self) -> Iterable[Type[object]]:
