@@ -184,7 +184,6 @@ class PySpringApplication:
         self.app_context.set_all_file_paths(self.target_dir_absolute_file_paths)
         self.app_context.validate_entity_providers()
         # after injecting all deps, lifecycle (init) can be called
-
         self._init_providers(self.entity_providers)
         self._handle_singleton_components_life_cycle(ComponentLifeCycle.Init)
 
