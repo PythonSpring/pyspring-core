@@ -1,8 +1,10 @@
 
 from typing import Any, Callable, Type
 
+from pydantic import BaseModel
 
-class ApplicationEvent: ...
+
+class ApplicationEvent(BaseModel): ...
 
 class ApplicationEventHandlerRegistry:
     event_handlers: dict[str, dict[str, Callable[..., Any]]] = {}
@@ -18,4 +20,5 @@ class ApplicationEventHandlerRegistry:
     @classmethod
     def get_event_handlers(cls, event_type: Type[ApplicationEvent]) -> list[Callable[[ApplicationEvent], None]]:
         event_name = event_type.__name__
-        return list(cls.event_handlers[event_name].values())
+        handlers = cls.event_handlers.get(event_name, {})
+        return list(handlers.values())
