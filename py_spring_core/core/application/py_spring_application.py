@@ -27,6 +27,7 @@ from py_spring_core.core.entities.controllers.rest_controller import RestControl
 from py_spring_core.core.entities.controllers.route_mapping import RouteMapping
 from py_spring_core.core.entities.entity_provider import EntityProvider
 from py_spring_core.core.entities.properties.properties import Properties
+from py_spring_core.core.interfaces.application_context_required import ApplicationContextRequired
 from py_spring_core.event.application_event_publisher import ApplicationEventPublisher
 
 
@@ -161,11 +162,19 @@ class PySpringApplication:
         for provider in providers:
             provider.provider_init()
 
+    def _inject_application_context_to_context_required(self, classes: Iterable[Type[object]]) -> None:
+        for cls in classes:
+            if not issubclass(cls, ApplicationContextRequired):
+                continue
+            cls.set_application_context(self.app_context)
+
     def __init_app(self) -> None:
         scanned_classes = self._scan_classes_for_project()
         system_managed_classes = self._get_system_managed_classes()
+        classes_to_inject = [*scanned_classes, *system_managed_classes]
+        self._inject_application_context_to_context_required(classes_to_inject)
         self._register_all_entities_from_providers()
-        self._register_app_entities([*scanned_classes, *system_managed_classes])
+        self._register_app_entities(classes_to_inject)
         self._register_entity_providers(self.entity_providers)
         self.app_context.load_properties()
         self.app_context.init_ioc_container()

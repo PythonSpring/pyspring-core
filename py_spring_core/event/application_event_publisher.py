@@ -5,11 +5,12 @@ from queue import Queue
 from loguru import logger
 
 from py_spring_core.core.entities.component import Component
+from py_spring_core.core.interfaces.application_context_required import ApplicationContextRequired
 from py_spring_core.event.application_event_handler_registry import ApplicationEvent, ApplicationEventHandlerRegistry
 
 T = TypeVar("T", bound=ApplicationEvent)
 
-class ApplicationEventPublisher(Component):
+class ApplicationEventPublisher(Component, ApplicationContextRequired):
     def __init__(self):
         self.event_message_queue: Queue[ApplicationEvent] = Queue()
         self.registry = ApplicationEventHandlerRegistry
