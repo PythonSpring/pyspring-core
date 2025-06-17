@@ -12,12 +12,20 @@ from py_spring_core.event.commons import ApplicationEvent, EventMessageQueue
 EventHandlerT = Callable[[Component, ApplicationEvent], None]
 
 def EventListener(event_type: Type[ApplicationEvent]) -> Callable:
+    """
+    The EventListener decorator is used to register an event handler for an application event.
+    It is responsible for binding an event handler to a component and a function.
+    """
     def decorator(func: EventHandlerT) -> None:
         ApplicationEventHandlerRegistry.register_event_handler(event_type, func)
     return decorator
 
 
 class EventHandler(BaseModel):
+    """
+    The EventHandler class is a model that represents an event handler for an application event.
+    It is responsible for binding an event handler to a component and a function.
+    """
     class_name: str
     func_name: str
     event_type: Type[ApplicationEvent]
@@ -32,18 +40,19 @@ class EventHandler(BaseModel):
         return hash((self.class_name, self.func_name))
 
 
-
-
-
-
 class ApplicationEventHandlerRegistry(Component, ApplicationContextRequired):
+    """
+    The ApplicationEventHandlerRegistry is a component that registers event handlers for application events.
+    It is responsible for binding event handlers to their corresponding components and handling event messages.
+
+    The class performs the following key tasks:
+    - Registers event handlers for application events
+    - Binds event handlers to their corresponding components
+    """
     _class_event_handlers: dict[str, list[EventHandler]] = {}
     def __init__(self) -> None:
         self._event_handlers: dict[str, list[EventHandler]] = {}
         self._event_message_queue = EventMessageQueue.event_message_queue
-
-        
-
 
     def post_construct(self) -> None:
         logger.info("Initializing event handlers...")

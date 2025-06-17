@@ -11,6 +11,13 @@ T = TypeVar("T", bound=ApplicationEvent)
 
 
 class ApplicationEventPublisher(Component):
+    """
+    The ApplicationEventPublisher is a component that publishes application events.
+    It is responsible for publishing application events to the event message queue.
+
+    The class performs the following key tasks:
+    - Publishes application events to the event message queue
+    """
     def __init__(self):
         self.event_message_queue = EventMessageQueue.event_message_queue
         self.registry = ApplicationEventHandlerRegistry
