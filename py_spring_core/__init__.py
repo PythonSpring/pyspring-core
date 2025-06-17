@@ -13,4 +13,4 @@ from py_spring_core.core.entities.entity_provider import EntityProvider
 from py_spring_core.core.entities.properties.properties import Properties
 from py_spring_core.event.application_event_publisher import ApplicationEventPublisher, ApplicationEvent
 
-__version__ = "0.0.10"
+__version__ = "0.0.11"
