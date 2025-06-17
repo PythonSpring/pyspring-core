@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from py_spring_core.core.entities.component import Component
 from py_spring_core.core.interfaces.application_context_required import ApplicationContextRequired
-from py_spring_core.event.commons import ApplicationEvent, EventMessageQueue
+from py_spring_core.event.commons import ApplicationEvent, EventQueue
 
 EventHandlerT = Callable[[Component, ApplicationEvent], None]
 
@@ -55,7 +55,7 @@ class ApplicationEventHandlerRegistry(Component, ApplicationContextRequired):
     _class_event_handlers: dict[str, list[EventHandler]] = {}
     def __init__(self) -> None:
         self._event_handlers: dict[str, list[EventHandler]] = {}
-        self._event_message_queue = EventMessageQueue.event_message_queue
+        self._event_message_queue = EventQueue.queue
 
     def post_construct(self) -> None:
         logger.info("Initializing event handlers...")
