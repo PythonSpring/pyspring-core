@@ -104,7 +104,7 @@ class PySpringApplication:
             retention=config.log_retention,
         )
 
-    def _get_system_managed_classes(self) -> Iterable[Type[object]]:
+    def _get_system_managed_classes(self) -> Iterable[Type[Component]]:
         return [
             ApplicationEventPublisher
         ]
