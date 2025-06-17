@@ -11,6 +11,8 @@ from py_spring_core.core.entities.controllers.route_mapping import (
 )
 from py_spring_core.core.entities.entity_provider import EntityProvider
 from py_spring_core.core.entities.properties.properties import Properties
-from py_spring_core.event.application_event_publisher import ApplicationEventPublisher, ApplicationEvent
+from py_spring_core.event.application_event_publisher import ApplicationEventPublisher
+from py_spring_core.event.commons import ApplicationEvent
+from py_spring_core.event.application_event_handler_registry import EventListener
 
 __version__ = "0.0.11"
