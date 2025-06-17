@@ -27,6 +27,7 @@ from py_spring_core.core.entities.controllers.rest_controller import RestControl
 from py_spring_core.core.entities.controllers.route_mapping import RouteMapping
 from py_spring_core.core.entities.entity_provider import EntityProvider
 from py_spring_core.core.entities.properties.properties import Properties
+from py_spring_core.event.application_event_publisher import ApplicationEventPublisher
 
 
 class PySpringApplication:
@@ -103,9 +104,14 @@ class PySpringApplication:
             retention=config.log_retention,
         )
 
-    def _scan_classes_for_project(self) -> None:
+    def _get_system_managed_classes(self) -> Iterable[Type[object]]:
+        return [
+            ApplicationEventPublisher
+        ]
+
+    def _scan_classes_for_project(self) -> Iterable[Type[object]]:
         self.app_class_scanner.scan_classes_for_file_paths()
-        self.scanned_classes = self.app_class_scanner.get_classes()
+        return self.app_class_scanner.get_classes()
 
     def _register_all_entities_from_providers(self) -> None:
         for provider in self.entity_providers:
@@ -156,9 +162,10 @@ class PySpringApplication:
             provider.provider_init()
 
     def __init_app(self) -> None:
-        self._scan_classes_for_project()
+        scanned_classes = self._scan_classes_for_project()
+        system_managed_classes = self._get_system_managed_classes()
         self._register_all_entities_from_providers()
-        self._register_app_entities(self.scanned_classes)
+        self._register_app_entities([*scanned_classes, *system_managed_classes])
         self._register_entity_providers(self.entity_providers)
         self.app_context.load_properties()
         self.app_context.init_ioc_container()
