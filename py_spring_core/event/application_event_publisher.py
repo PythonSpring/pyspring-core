@@ -20,8 +20,6 @@ class ApplicationEventPublisher(Component):
     """
     def __init__(self):
         self.event_message_queue = EventMessageQueue.event_message_queue
-        self.registry = ApplicationEventHandlerRegistry
-
     
     def publish(self, event: ApplicationEvent) -> None:
         self.event_message_queue.put(event)
