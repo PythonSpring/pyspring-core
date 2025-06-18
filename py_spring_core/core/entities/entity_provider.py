@@ -25,7 +25,7 @@ class EntityProvider:
     extneral_dependencies: list[Any] = field(default_factory=list)
     app_context: Optional["ApplicationContext"] = None
 
-    def get_entities(self) -> list[Type[object]]:
+    def get_entities(self) -> list[Type[AppEntities]]:
         return [
             *self.component_classes,
             *self.bean_collection_classes,
