@@ -116,11 +116,6 @@ class PySpringApplication:
         self.app_class_scanner.scan_classes_for_file_paths()
         return self.app_class_scanner.get_classes()
 
-    def _register_all_entities_from_providers(self) -> None:
-        for provider in self.entity_providers:
-            entities = provider.get_entities()
-            self._register_app_entities(entities)
-
     def _register_app_entities(self, classes: Iterable[Type[object]]) -> None:
         for _cls in classes:
             for _target_cls, handler in self.classes_with_handlers.items():
@@ -175,7 +170,6 @@ class PySpringApplication:
         system_managed_classes = self._get_system_managed_classes()
         classes_to_inject = [*scanned_classes, *system_managed_classes]
         self._inject_application_context_to_context_required(classes_to_inject)
-        self._register_all_entities_from_providers()
         self._register_app_entities(classes_to_inject)
         self._register_entity_providers(self.entity_providers)
         self.app_context.load_properties()

@@ -1,6 +1,6 @@
 
 from threading import Thread
-from typing import Callable, Type
+from typing import Callable, ClassVar, Type
 
 from loguru import logger
 from pydantic import BaseModel
@@ -52,7 +52,7 @@ class ApplicationEventHandlerRegistry(Component, ApplicationContextRequired):
     - Registers event handlers for application events
     - Binds event handlers to their corresponding components
     """
-    _class_event_handlers: dict[str, list[EventHandler]] = {}
+    _class_event_handlers: ClassVar[dict[str, list[EventHandler]]] = {}
     def __init__(self) -> None:
         self._event_handlers: dict[str, list[EventHandler]] = {}
         self._event_message_queue = EventQueue.queue
