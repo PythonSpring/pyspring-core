@@ -1,3 +1,4 @@
+from typing import Iterable
 from fastapi import APIRouter, FastAPI
 from functools import partial
 
@@ -23,7 +24,7 @@ class RestController:
     class Config:
         prefix: str = ""
 
-    def _register_routes(self, routes: list[RouteRegistration]) -> None:
+    def _register_routes(self, routes: Iterable[RouteRegistration]) -> None:
         for route in routes:
             bound_method = partial(route.func, self)
             self.router.add_api_route(
