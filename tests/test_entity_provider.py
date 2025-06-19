@@ -24,7 +24,7 @@ class TestEntityProvider:
         self, test_entity_provider: EntityProvider
     ) -> ApplicationContext:
         app_context = ApplicationContext(ApplicationContextConfig(properties_path=""))
-        app_context.register_entity_provider(test_entity_provider)
+        app_context.providers.append(test_entity_provider)
         return app_context
 
     def test_did_raise_error_when_no_depends_on_is_provided(
