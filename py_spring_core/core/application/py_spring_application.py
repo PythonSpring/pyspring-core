@@ -123,12 +123,12 @@ class PySpringApplication:
                     continue
                 handler(_cls)
 
-    def _register_entity_providers(
-        self, entity_providers: Iterable[EntityProvider]
-    ) -> None:
+    def _get_all_entities_from_entity_providers(self, entity_providers: Iterable[EntityProvider]) -> Iterable[Type[AppEntities]]:
+        entities: list[Type[AppEntities]] = []
         for provider in entity_providers:
-            self.app_context.register_entity_provider(provider)
-            provider.set_context(self.app_context)
+            entities.extend(provider.get_entities())
+
+        return entities
 
     def _handle_register_component(self, _cls: Type[Component]) -> None:
         self.app_context.register_component(_cls)
@@ -165,13 +165,19 @@ class PySpringApplication:
                 continue
             cls.set_application_context(self.app_context)
 
-    def __init_app(self) -> None:
+    def _prepare_injected_classes(self) -> Iterable[Type[object]]:
         scanned_classes = self._scan_classes_for_project()
         system_managed_classes = self._get_system_managed_classes()
-        classes_to_inject = [*scanned_classes, *system_managed_classes]
+        provider_entities = self._get_all_entities_from_entity_providers(self.entity_providers)
+        provider_classes = [provider.__class__ for provider in self.entity_providers]
+        # providers typically requires app context, so add to classess to inject
+        classes_to_inject = [*scanned_classes, *system_managed_classes, *provider_entities, *provider_classes]
+        return classes_to_inject
+
+    def __init_app(self) -> None:
+        classes_to_inject = self._prepare_injected_classes()
         self._inject_application_context_to_context_required(classes_to_inject)
         self._register_app_entities(classes_to_inject)
-        self._register_entity_providers(self.entity_providers)
         self.app_context.load_properties()
         self.app_context.init_ioc_container()
         self.app_context.inject_dependencies_for_app_entities()
@@ -196,10 +202,9 @@ class PySpringApplication:
         controllers = self.app_context.get_controller_instances()
         for controller in controllers:
             name = controller.__class__.__name__
-            routes = RouteMapping.routes.get(name, None)
-            if routes is None:
-                continue
-            controller._register_routes(routes)
+            routes = RouteMapping.routes.get(name, set())        
+            controller.post_construct()
+            controller._register_decorated_routes(routes)
             router = controller.get_router()
             self.fastapi.include_router(router)
             controller.register_middlewares()

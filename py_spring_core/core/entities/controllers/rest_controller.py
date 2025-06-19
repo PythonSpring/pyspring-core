@@ -24,7 +24,9 @@ class RestController:
     class Config:
         prefix: str = ""
 
-    def _register_routes(self, routes: Iterable[RouteRegistration]) -> None:
+    def post_construct(self) -> None: ...
+
+    def _register_decorated_routes(self, routes: Iterable[RouteRegistration]) -> None:
         for route in routes:
             bound_method = partial(route.func, self)
             self.router.add_api_route(
