@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any, Callable, Iterable, Type
 
@@ -21,6 +22,7 @@ from py_spring_core.core.application.context.application_context import (
 from py_spring_core.core.application.context.application_context_config import (
     ApplicationContextConfig,
 )
+from py_spring_core.core.application.loguru_config import LogFormat
 from py_spring_core.core.entities.bean_collection import BeanCollection
 from py_spring_core.core.entities.component import Component, ComponentLifeCycle
 from py_spring_core.core.entities.controllers.rest_controller import RestController
@@ -97,14 +99,16 @@ class PySpringApplication:
         config = self.app_config.loguru_config
         if not config.log_file_path:
             return
-
+        
+        # Use the format field from config which contains the actual format string
         logger.add(
             config.log_file_path,
-            format=config.log_format,
             level=config.log_level,
             rotation=config.log_rotation,
             retention=config.log_retention,
+            serialize=config.format == LogFormat.JSON,
         )
+        self.__configure_uvicorn_logging()
 
     def _get_system_managed_classes(self) -> Iterable[Type[Component]]:
         return [
@@ -209,11 +213,40 @@ class PySpringApplication:
             self.fastapi.include_router(router)
             controller.register_middlewares()
 
+    def __configure_uvicorn_logging(self):
+        """Configure Uvicorn to use Loguru instead of default logging."""
+        
+        
+        # Intercept standard logging and redirect to loguru
+        class InterceptHandler(logging.Handler):
+            def emit(self, record):
+                # Get corresponding Loguru level if it exists
+                try:
+                    level = logger.level(record.levelname).name
+                except ValueError:
+                    level = record.levelno
+
+                # Find caller from where originated the logged message
+                frame, depth = logging.currentframe(), 2
+                while frame and frame.f_code.co_filename == logging.__file__:
+                    frame = frame.f_back
+                    depth += 1
+
+                logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+
+        # Remove default uvicorn logger and add intercept handler
+        logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
+
     def __run_server(self) -> None:
+        # Configure Uvicorn to use Loguru
+        
+        
+        # Run uvicorn server
         uvicorn.run(
             self.fastapi,
             host=self.app_config.server_config.host,
             port=self.app_config.server_config.port,
+            log_config=None,  # Disable uvicorn's default logging
         )
 
     def run(self) -> None:

@@ -61,7 +61,7 @@ class ApplicationEventHandlerRegistry(Component, ApplicationContextRequired):
         logger.info("Initializing event handlers...")
         self._init_event_handlers()
         logger.info("Starting event message handler thread...")
-        Thread(target= self._handle_messages).start()
+        Thread(target= self._handle_messages, daemon=True).start()
 
     def _init_event_handlers(self) -> None:
         app_context = self.get_application_context()

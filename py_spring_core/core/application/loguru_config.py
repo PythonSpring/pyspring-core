@@ -14,6 +14,10 @@ class LogLevel(str, Enum):
     CRITICAL = "CRITICAL"
 
 
+class LogFormat(str, Enum):
+    TEXT = "text"
+    JSON = "json"
+
 class LoguruConfig(BaseModel):
     log_format: str = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
@@ -27,3 +31,4 @@ class LoguruConfig(BaseModel):
     log_file_path: Optional[str] = "./logs/app.log"
     enable_backtrace: bool = True
     enable_diagnose: bool = True
+    format: LogFormat = LogFormat.TEXT
