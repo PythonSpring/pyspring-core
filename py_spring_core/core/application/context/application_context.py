@@ -12,6 +12,7 @@ from typing import (
     get_origin,
 )
 
+from fastapi import FastAPI
 from loguru import logger
 from pydantic import BaseModel
 
@@ -57,7 +58,8 @@ class ApplicationContext:
     The `ApplicationContext` class is designed to follow the Singleton design pattern, ensuring that there is a single instance of the application context throughout the application's lifetime.
     """
 
-    def __init__(self, config: ApplicationContextConfig) -> None:
+    def __init__(self, config: ApplicationContextConfig, server: FastAPI) -> None:
+        self.server = server
         self.all_file_paths: set[str] = set()
         self.primitive_types = (bool, str, int, float, type(None))
 
