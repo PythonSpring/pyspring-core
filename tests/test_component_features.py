@@ -1,6 +1,7 @@
 from abc import ABC
 from typing import Annotated
 
+from fastapi import FastAPI
 import pytest
 
 from py_spring_core.core.application.context.application_context import (
@@ -14,10 +15,14 @@ class TestComponentFeatures:
     """Test suite for component features including primary components, qualifiers, and registration validation."""
 
     @pytest.fixture
-    def app_context(self):
+    def server(self) -> FastAPI:
+        return FastAPI()
+
+    @pytest.fixture
+    def app_context(self, server: FastAPI):
         """Fixture that provides a fresh ApplicationContext instance for each test."""
         config = ApplicationContextConfig(properties_path="")
-        return ApplicationContext(config)
+        return ApplicationContext(config, server=server)
 
     def test_qualifier_based_injection(self, app_context: ApplicationContext):
         """

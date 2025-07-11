@@ -1,3 +1,4 @@
+from fastapi import FastAPI
 import pytest
 
 from py_spring_core.core.application.context.application_context import (
@@ -12,9 +13,13 @@ from py_spring_core.core.entities.properties.properties import Properties
 
 class TestApplicationContext:
     @pytest.fixture
-    def app_context(self):
+    def server(self) -> FastAPI:
+        return FastAPI()
+
+    @pytest.fixture
+    def app_context(self, server: FastAPI):
         config = ApplicationContextConfig(properties_path="")
-        return ApplicationContext(config)
+        return ApplicationContext(config, server=server)
 
     def test_register_entities_correctly(self, app_context: ApplicationContext):
         class TestComponent(Component): ...
