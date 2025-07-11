@@ -79,8 +79,9 @@ class PySpringApplication:
         self.app_context_config = ApplicationContextConfig(
             properties_path=self.app_config.properties_file_path
         )
-        self.app_context = ApplicationContext(config=self.app_context_config)
         self.fastapi = FastAPI()
+        self.app_context = ApplicationContext(config=self.app_context_config, server=self.fastapi)
+       
 
         self.classes_with_handlers: dict[
             Type[AppEntities], Callable[[Type[Any]], None]

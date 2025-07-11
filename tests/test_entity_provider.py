@@ -1,3 +1,4 @@
+from fastapi import FastAPI
 import pytest
 
 from py_spring_core.core.application.context.application_context import (
@@ -18,12 +19,16 @@ class TestEntityProvider:
     @pytest.fixture
     def test_entity_provider(self):
         return EntityProvider(depends_on=[TestComponent])
+    
+    @pytest.fixture
+    def server(self) -> FastAPI:
+        return FastAPI()
 
     @pytest.fixture
     def test_app_context(
-        self, test_entity_provider: EntityProvider
+        self, test_entity_provider: EntityProvider, server: FastAPI
     ) -> ApplicationContext:
-        app_context = ApplicationContext(ApplicationContextConfig(properties_path=""))
+        app_context = ApplicationContext(ApplicationContextConfig(properties_path=""), server=server)
         app_context.providers.append(test_entity_provider)
         return app_context
 
