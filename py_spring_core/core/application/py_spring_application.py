@@ -216,8 +216,7 @@ class PySpringApplication:
 
     def __configure_uvicorn_logging(self):
         """Configure Uvicorn to use Loguru instead of default logging."""
-        
-        
+        # Configure Uvicorn to use Loguru
         # Intercept standard logging and redirect to loguru
         class InterceptHandler(logging.Handler):
             def emit(self, record):
@@ -236,10 +235,11 @@ class PySpringApplication:
                 logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
         # Remove default uvicorn logger and add intercept handler
-        logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
+        log_level = self.app_config.loguru_config.log_level.value
+        logging.basicConfig(handlers=[InterceptHandler()], level=log_level, force=True)
 
     def __run_server(self) -> None:
-        # Configure Uvicorn to use Loguru
+        
         
         
         # Run uvicorn server
