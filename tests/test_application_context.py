@@ -37,21 +37,21 @@ class TestApplicationContext:
         app_context.register_properties(TestProperties)
 
         assert (
-            "TestComponent" in app_context.component_cls_container
-            and app_context.component_cls_container["TestComponent"] == TestComponent
+            "TestComponent" in app_context.container_manager.component_cls_container
+            and app_context.container_manager.component_cls_container["TestComponent"] == TestComponent
         )
         assert (
-            "TestController" in app_context.controller_cls_container
-            and app_context.controller_cls_container["TestController"] == TestController
+            "TestController" in app_context.container_manager.controller_cls_container
+            and app_context.container_manager.controller_cls_container["TestController"] == TestController
         )
         assert (
-            "TestBeanCollection" in app_context.bean_collection_cls_container
-            and app_context.bean_collection_cls_container["TestBeanCollection"]
+            "TestBeanCollection" in app_context.container_manager.bean_collection_cls_container
+            and app_context.container_manager.bean_collection_cls_container["TestBeanCollection"]
             == TestBeanCollection
         )
         assert (
-            "test_properties" in app_context.properties_cls_container
-            and app_context.properties_cls_container["test_properties"]
+            "test_properties" in app_context.container_manager.properties_cls_container
+            and app_context.container_manager.properties_cls_container["test_properties"]
             == TestProperties
         )
 
@@ -70,10 +70,10 @@ class TestApplicationContext:
         app_context.register_bean_collection(TestBeanCollection)
         app_context.register_properties(TestProperties)
 
-        assert "TestComponent" in app_context.component_cls_container
-        assert "TestController" in app_context.controller_cls_container
-        assert "TestBeanCollection" in app_context.bean_collection_cls_container
-        assert "test_properties" in app_context.properties_cls_container
+        assert "TestComponent" in app_context.container_manager.component_cls_container
+        assert "TestController" in app_context.container_manager.controller_cls_container
+        assert "TestBeanCollection" in app_context.container_manager.bean_collection_cls_container
+        assert "test_properties" in app_context.container_manager.properties_cls_container
 
     def test_register_invalid_entities_raises_error(
         self, app_context: ApplicationContext
@@ -128,7 +128,7 @@ class TestApplicationContext:
 
         # Test retrieving singleton components
         component_instance = TestComponent()
-        app_context.singleton_component_instance_container["TestComponent"] = (
+        app_context.container_manager.singleton_component_instance_container["TestComponent"] = (
             component_instance
         )
         retrieved_component = app_context.get_component(TestComponent, None)
@@ -136,7 +136,7 @@ class TestApplicationContext:
 
         # Test retrieving singleton beans
         bean_instance = TestBeanCollection()
-        app_context.singleton_bean_instance_container["TestBeanCollection"] = (
+        app_context.container_manager.singleton_bean_instance_container["TestBeanCollection"] = (
             bean_instance
         )
         retrieved_bean = app_context.get_bean(TestBeanCollection, None)
@@ -144,7 +144,7 @@ class TestApplicationContext:
 
         # Test retrieving singleton properties
         properties_instance = TestProperties()
-        app_context.singleton_properties_instance_container["test_properties"] = (
+        app_context.container_manager.singleton_properties_instance_container["test_properties"] = (
             properties_instance
         )
         retrieved_properties = app_context.get_properties(TestProperties)
