@@ -25,6 +25,7 @@ from py_spring_core.core.application.context.application_context_config import (
 from py_spring_core.core.entities.bean_collection import (
     BeanCollection,
     BeanConflictError,
+    BeanView,
     InvalidBeanError,
 )
 from py_spring_core.core.entities.component import Component, ComponentScope
@@ -362,7 +363,7 @@ class BeanManager:
         )
         self.dependency_injector.inject_dependencies(bean_collection_cls)
     
-    def _validate_bean_view(self, view, collection_name: str) -> None:
+    def _validate_bean_view(self, view: BeanView, collection_name: str) -> None:
         """Validate a bean view before adding it to the container."""
         if view.bean_name in self.container_manager.singleton_bean_instance_container:
             raise BeanConflictError(
