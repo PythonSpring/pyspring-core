@@ -183,10 +183,13 @@ class ApplicationContext:
                 f"[COMPONENT REGISTRATION ERROR] Component: {component_cls} is not a subclass of Component"
             )
         component_cls_name = component_cls.get_name()
-        if component_cls_name in self.component_cls_container:
-            raise ValueError(
-                f"[COMPONENT REGISTRATION ERROR] Component: {component_cls_name} already registered"
-            )
+        is_same_component = (
+            component_cls_name in self.component_cls_container and self.component_cls_container[component_cls_name].__name__ == component_cls.__name__
+            and self.component_cls_container[component_cls_name] == component_cls
+        )
+        if is_same_component:
+            return
+        
         self.component_cls_container[component_cls_name] = component_cls
 
     def register_controller(self, controller_cls: Type[RestController]) -> None:
@@ -288,21 +291,22 @@ class ApplicationContext:
                 f"[INITIALIZING SINGLETON COMPONENT] Init singleton component: {component_cls_name}"
             )
             if issubclass(component_cls, ABC):
-                components = self.get_abstract_class_component_subclasses(component_cls)
-                for subclass_component in components:
-                    unimplemented_abstract_methods = framework_utils.get_unimplemented_abstract_methods(subclass_component)
+                component_classes = self.get_abstract_class_component_subclasses(component_cls)
+                for subclass_component_cls in component_classes:
+                    self.register_component(subclass_component_cls)
+                    unimplemented_abstract_methods = framework_utils.get_unimplemented_abstract_methods(subclass_component_cls)
                     if len(unimplemented_abstract_methods) > 0:
                         unimplemented_abstract_methods_str = ", ".join(unimplemented_abstract_methods)
-                        message = f"[ABSTRACT CLASS COMPONENT INITIALIZING SINGLETON COMPONENT] Unable to initialize singleton component: {subclass_component.get_name()} because it has unimplemented abstract methods: {unimplemented_abstract_methods_str}"
+                        message = f"[ABSTRACT CLASS COMPONENT INITIALIZING SINGLETON COMPONENT] Unable to initialize singleton component: {subclass_component_cls.get_name()} because it has unimplemented abstract methods: {unimplemented_abstract_methods_str}"
                         logger.error(message)
                         raise ValueError(message)
                     logger.debug(
-                        f"[ABSTRACT CLASS COMPONENT INITIALIZING SINGLETON COMPONENT] Init singleton component: {subclass_component.get_name()}"
+                        f"[ABSTRACT CLASS COMPONENT INITIALIZING SINGLETON COMPONENT] Init singleton component: {subclass_component_cls.get_name()}"
                     )
-                    instance = self.init_singleton_component(subclass_component, subclass_component.get_name())
+                    instance = self.init_singleton_component(subclass_component_cls, subclass_component_cls.get_name())
                     if instance is None:
                         continue
-                    self.singleton_component_instance_container[subclass_component.get_name()] = instance
+                    self.singleton_component_instance_container[subclass_component_cls.get_name()] = instance
             else:
                 instance = self.init_singleton_component(component_cls, component_cls.get_name())
                 if instance is None:
