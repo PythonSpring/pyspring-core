@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from loguru import logger
 from pydantic import BaseModel
 
+import  py_spring_core.core.utils as framework_utils
 from py_spring_core.core.application.commons import AppEntities
 from py_spring_core.core.application.context.application_context_config import (
     ApplicationContextConfig,
@@ -288,6 +289,12 @@ class ApplicationContext:
             )
             components = self.get_abstract_class_component_subclasses(component_cls)
             for subclass_component in components:
+                unimplemented_abstract_methods = framework_utils.get_unimplemented_abstract_methods(subclass_component)
+                if len(unimplemented_abstract_methods) > 0:
+                    unimplemented_abstract_methods_str = ", ".join(unimplemented_abstract_methods)
+                    message = f"[ABSTRACT CLASS COMPONENT INITIALIZING SINGLETON COMPONENT] Unable to initialize singleton component: {subclass_component.get_name()} because it has unimplemented abstract methods: {unimplemented_abstract_methods_str}"
+                    logger.error(message)
+                    raise ValueError(message)
                 logger.debug(
                     f"[ABSTRACT CLASS COMPONENT INITIALIZING SINGLETON COMPONENT] Init singleton component: {subclass_component.get_name()}"
                 )
@@ -295,7 +302,6 @@ class ApplicationContext:
                 if instance is None:
                     continue
                 self.singleton_component_instance_container[subclass_component.get_name()] = instance
-            
             instance = self.init_singleton_component(component_cls, component_cls.get_name())
             if instance is None:
                 continue

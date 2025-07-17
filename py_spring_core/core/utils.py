@@ -1,7 +1,8 @@
+from abc import ABC
 import importlib.util
 import inspect
 from pathlib import Path
-from typing import Iterable, Type
+from typing import Any, Iterable, Type
 
 from loguru import logger
 
@@ -75,3 +76,30 @@ def dynamically_import_modules(
                 returned_target_classes.add(loaded_class)
 
     return returned_target_classes
+
+
+def get_unimplemented_abstract_methods(cls: Type[Any]) -> set[str]:
+    """
+    Returns a set of abstract method names not implemented in the given class.
+    Assumes cls is a subclass of abc.ABC.
+    
+    :param cls: A subclass of abc.ABC
+    :return: A set of method names that are abstract but not yet implemented
+    """
+    if not isinstance(cls, type):
+        raise TypeError("Expected a class type.")
+
+    if not issubclass(cls, ABC):
+        raise TypeError("Expected a subclass of abc.ABC.")
+
+    abstract_methods: set[str] = set()
+    for base in cls.__mro__:
+        base_abstracts = getattr(base, '__abstractmethods__', set())
+        abstract_methods = abstract_methods.union(base_abstracts)
+
+    implemented_methods: set[str] = {
+        attr for attr in dir(cls)
+        if callable(getattr(cls, attr)) and not getattr(getattr(cls, attr), '__isabstractmethod__', False)
+    }
+
+    return abstract_methods.difference(implemented_methods)
