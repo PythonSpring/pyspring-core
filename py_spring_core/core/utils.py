@@ -81,10 +81,11 @@ def dynamically_import_modules(
 def get_unimplemented_abstract_methods(cls: Type[Any]) -> set[str]:
     """
     Returns a set of abstract method names not implemented in the given class.
-    Assumes cls is a subclass of abc.ABC.
-    
-    :param cls: A subclass of abc.ABC
-    :return: A set of method names that are abstract but not yet implemented
+    Args:
+        cls (Type[Any]): A subclass of abc.ABC
+        
+    Returns:
+        set[str]: A set of method names that are abstract but not yet implemented
     """
     if not isinstance(cls, type):
         raise TypeError("Expected a class type.")
