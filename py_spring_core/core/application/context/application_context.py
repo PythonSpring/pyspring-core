@@ -104,7 +104,6 @@ class ApplicationContext:
         4. If the component class is an ABC and has no implementations, return the name of the first subclass.
         5. If the component class is an ABC and has multiple implementations, raise an error.
         """
-
         if qualifier is not None:
             return qualifier
 
@@ -140,9 +139,7 @@ class ApplicationContext:
         scope = component_cls.get_scope()
         match scope:
             case ComponentScope.Singleton:
-                optional_instance = self.singleton_component_instance_container.get(
-                    target_cls_name
-                )
+                optional_instance = self.singleton_component_instance_container.get(target_cls_name)
                 return cast(T, optional_instance)
 
             case ComponentScope.Prototype:
@@ -268,6 +265,12 @@ class ApplicationContext:
 
         return instance
 
+    def get_abstract_class_component_subclasses(self, component_cls: Type[Component]) -> list[Type[Component]]:
+        return [
+            subclass for subclass in component_cls.__subclasses__() 
+            if issubclass(subclass, Component)
+        ]
+
     def init_ioc_container(self) -> None:
         """
         Initializes the IoC (Inversion of Control) container by creating singleton instances of all registered components.
@@ -283,7 +286,17 @@ class ApplicationContext:
             logger.debug(
                 f"[INITIALIZING SINGLETON COMPONENT] Init singleton component: {component_cls_name}"
             )
-            instance = self.init_singleton_component(component_cls, component_cls_name)
+            components = self.get_abstract_class_component_subclasses(component_cls)
+            for subclass_component in components:
+                logger.debug(
+                    f"[ABSTRACT CLASS COMPONENT INITIALIZING SINGLETON COMPONENT] Init singleton component: {subclass_component.get_name()}"
+                )
+                instance = self.init_singleton_component(subclass_component, subclass_component.get_name())
+                if instance is None:
+                    continue
+                self.singleton_component_instance_container[subclass_component.get_name()] = instance
+            
+            instance = self.init_singleton_component(component_cls, component_cls.get_name())
             if instance is None:
                 continue
             self.singleton_component_instance_container[component_cls_name] = instance
