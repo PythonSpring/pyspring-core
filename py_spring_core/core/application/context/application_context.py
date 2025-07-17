@@ -266,7 +266,7 @@ class ApplicationContext:
 
         return instance
 
-    def get_abstract_class_component_subclasses(self, component_cls: Type[Component]) -> list[Type[Component]]:
+    def get_abstract_class_component_subclasses(self, component_cls: Type[ABC]) -> list[Type[Component]]:
         return [
             subclass for subclass in component_cls.__subclasses__() 
             if issubclass(subclass, Component)
@@ -287,25 +287,27 @@ class ApplicationContext:
             logger.debug(
                 f"[INITIALIZING SINGLETON COMPONENT] Init singleton component: {component_cls_name}"
             )
-            components = self.get_abstract_class_component_subclasses(component_cls)
-            for subclass_component in components:
-                unimplemented_abstract_methods = framework_utils.get_unimplemented_abstract_methods(subclass_component)
-                if len(unimplemented_abstract_methods) > 0:
-                    unimplemented_abstract_methods_str = ", ".join(unimplemented_abstract_methods)
-                    message = f"[ABSTRACT CLASS COMPONENT INITIALIZING SINGLETON COMPONENT] Unable to initialize singleton component: {subclass_component.get_name()} because it has unimplemented abstract methods: {unimplemented_abstract_methods_str}"
-                    logger.error(message)
-                    raise ValueError(message)
-                logger.debug(
-                    f"[ABSTRACT CLASS COMPONENT INITIALIZING SINGLETON COMPONENT] Init singleton component: {subclass_component.get_name()}"
-                )
-                instance = self.init_singleton_component(subclass_component, subclass_component.get_name())
+            if issubclass(component_cls, ABC):
+                components = self.get_abstract_class_component_subclasses(component_cls)
+                for subclass_component in components:
+                    unimplemented_abstract_methods = framework_utils.get_unimplemented_abstract_methods(subclass_component)
+                    if len(unimplemented_abstract_methods) > 0:
+                        unimplemented_abstract_methods_str = ", ".join(unimplemented_abstract_methods)
+                        message = f"[ABSTRACT CLASS COMPONENT INITIALIZING SINGLETON COMPONENT] Unable to initialize singleton component: {subclass_component.get_name()} because it has unimplemented abstract methods: {unimplemented_abstract_methods_str}"
+                        logger.error(message)
+                        raise ValueError(message)
+                    logger.debug(
+                        f"[ABSTRACT CLASS COMPONENT INITIALIZING SINGLETON COMPONENT] Init singleton component: {subclass_component.get_name()}"
+                    )
+                    instance = self.init_singleton_component(subclass_component, subclass_component.get_name())
+                    if instance is None:
+                        continue
+                    self.singleton_component_instance_container[subclass_component.get_name()] = instance
+            else:
+                instance = self.init_singleton_component(component_cls, component_cls.get_name())
                 if instance is None:
                     continue
-                self.singleton_component_instance_container[subclass_component.get_name()] = instance
-            instance = self.init_singleton_component(component_cls, component_cls.get_name())
-            if instance is None:
-                continue
-            self.singleton_component_instance_container[component_cls_name] = instance
+                self.singleton_component_instance_container[component_cls_name] = instance
 
         # for Bean
         for (
