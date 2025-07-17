@@ -1,3 +1,5 @@
+import  py_spring_core.core.utils as framework_utils
+
 from abc import ABC
 from inspect import isclass
 from typing import (
@@ -16,7 +18,6 @@ from fastapi import FastAPI
 from loguru import logger
 from pydantic import BaseModel
 
-import  py_spring_core.core.utils as framework_utils
 from py_spring_core.core.application.commons import AppEntities
 from py_spring_core.core.application.context.application_context_config import (
     ApplicationContextConfig,
