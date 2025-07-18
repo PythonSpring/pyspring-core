@@ -7,34 +7,38 @@ from fastapi import APIRouter, FastAPI
 from loguru import logger
 
 from py_spring_core.commons.class_scanner import ClassScanner
-from py_spring_core.commons.config_file_template_generator.config_file_template_generator import \
-    ConfigFileTemplateGenerator
+from py_spring_core.commons.config_file_template_generator.config_file_template_generator import (
+    ConfigFileTemplateGenerator,
+)
 from py_spring_core.commons.file_path_scanner import FilePathScanner
 from py_spring_core.commons.type_checking_service import TypeCheckingService
-from py_spring_core.core.application.application_config import \
-    ApplicationConfigRepository
+from py_spring_core.core.application.application_config import (
+    ApplicationConfigRepository,
+)
 from py_spring_core.core.application.commons import AppEntities
-from py_spring_core.core.application.context.application_context import \
-    ApplicationContext
-from py_spring_core.core.application.context.application_context_config import \
-    ApplicationContextConfig
+from py_spring_core.core.application.context.application_context import (
+    ApplicationContext,
+)
+from py_spring_core.core.application.context.application_context_config import (
+    ApplicationContextConfig,
+)
 from py_spring_core.core.application.loguru_config import LogFormat
 from py_spring_core.core.entities.bean_collection import BeanCollection
-from py_spring_core.core.entities.component import (Component,
-                                                    ComponentLifeCycle)
-from py_spring_core.core.entities.controllers.rest_controller import \
-    RestController
+from py_spring_core.core.entities.component import Component, ComponentLifeCycle
+from py_spring_core.core.entities.controllers.rest_controller import RestController
 from py_spring_core.core.entities.controllers.route_mapping import RouteMapping
 from py_spring_core.core.entities.entity_provider import EntityProvider
-from py_spring_core.core.entities.middlewares.middleware_registry import \
-    MiddlewareRegistry
+from py_spring_core.core.entities.middlewares.middleware_registry import (
+    MiddlewareRegistry,
+)
 from py_spring_core.core.entities.properties.properties import Properties
-from py_spring_core.core.interfaces.application_context_required import \
-    ApplicationContextRequired
-from py_spring_core.event.application_event_handler_registry import \
-    ApplicationEventHandlerRegistry
-from py_spring_core.event.application_event_publisher import \
-    ApplicationEventPublisher
+from py_spring_core.core.interfaces.application_context_required import (
+    ApplicationContextRequired,
+)
+from py_spring_core.event.application_event_handler_registry import (
+    ApplicationEventHandlerRegistry,
+)
+from py_spring_core.event.application_event_publisher import ApplicationEventPublisher
 
 
 class PySpringApplication:

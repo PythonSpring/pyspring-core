@@ -4,8 +4,9 @@ from typing import Type
 from fastapi import FastAPI
 
 from py_spring_core.core.entities.middlewares.middleware import Middleware
-from py_spring_core.core.interfaces.single_inheritance_required import \
-    SingleInheritanceRequired
+from py_spring_core.core.interfaces.single_inheritance_required import (
+    SingleInheritanceRequired,
+)
 
 
 class MiddlewareRegistry(SingleInheritanceRequired["MiddlewareRegistry"], ABC):

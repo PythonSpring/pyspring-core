@@ -6,9 +6,10 @@ from loguru import logger
 from pydantic import BaseModel
 
 from py_spring_core.commons.config_file_template_generator.templates import (
-    app_config_template, app_properties_template)
-from py_spring_core.core.application.application_config import \
-    ApplicationConfig
+    app_config_template,
+    app_properties_template,
+)
+from py_spring_core.core.application.application_config import ApplicationConfig
 
 
 class ConfigFileTemplateGenerator:

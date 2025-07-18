@@ -1,7 +1,17 @@
 from abc import ABC
 from inspect import isclass
-from typing import (Annotated, Any, Callable, Mapping, Optional, Type, TypeVar,
-                    cast, get_args, get_origin)
+from typing import (
+    Annotated,
+    Any,
+    Callable,
+    Mapping,
+    Optional,
+    Type,
+    TypeVar,
+    cast,
+    get_args,
+    get_origin,
+)
 
 from fastapi import FastAPI
 from loguru import logger
@@ -9,19 +19,20 @@ from pydantic import BaseModel
 
 import py_spring_core.core.utils as framework_utils
 from py_spring_core.core.application.commons import AppEntities
-from py_spring_core.core.application.context.application_context_config import \
-    ApplicationContextConfig
-from py_spring_core.core.entities.bean_collection import (BeanCollection,
-                                                          BeanConflictError,
-                                                          BeanView,
-                                                          InvalidBeanError)
+from py_spring_core.core.application.context.application_context_config import (
+    ApplicationContextConfig,
+)
+from py_spring_core.core.entities.bean_collection import (
+    BeanCollection,
+    BeanConflictError,
+    BeanView,
+    InvalidBeanError,
+)
 from py_spring_core.core.entities.component import Component, ComponentScope
-from py_spring_core.core.entities.controllers.rest_controller import \
-    RestController
+from py_spring_core.core.entities.controllers.rest_controller import RestController
 from py_spring_core.core.entities.entity_provider import EntityProvider
 from py_spring_core.core.entities.properties.properties import Properties
-from py_spring_core.core.entities.properties.properties_loader import \
-    _PropertiesLoader
+from py_spring_core.core.entities.properties.properties_loader import _PropertiesLoader
 
 T = TypeVar("T", bound=AppEntities)
 PT = TypeVar("PT", bound=Properties)

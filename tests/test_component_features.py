@@ -5,7 +5,9 @@ import pytest
 from fastapi import FastAPI
 
 from py_spring_core.core.application.context.application_context import (
-    ApplicationContext, ApplicationContextConfig)
+    ApplicationContext,
+    ApplicationContextConfig,
+)
 from py_spring_core.core.entities.component import Component, ComponentScope
 
 

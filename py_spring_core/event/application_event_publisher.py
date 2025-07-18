@@ -2,7 +2,9 @@ from typing import TypeVar
 
 from py_spring_core.core.entities.component import Component
 from py_spring_core.event.application_event_handler_registry import (
-    ApplicationEvent, ApplicationEventHandlerRegistry)
+    ApplicationEvent,
+    ApplicationEventHandlerRegistry,
+)
 from py_spring_core.event.commons import EventQueue
 
 T = TypeVar("T", bound=ApplicationEvent)

@@ -5,8 +5,9 @@ from loguru import logger
 from pydantic import BaseModel
 
 from py_spring_core.core.entities.component import Component
-from py_spring_core.core.interfaces.application_context_required import \
-    ApplicationContextRequired
+from py_spring_core.core.interfaces.application_context_required import (
+    ApplicationContextRequired,
+)
 from py_spring_core.event.commons import ApplicationEvent, EventQueue
 
 EventHandlerT = Callable[[Component, ApplicationEvent], None]

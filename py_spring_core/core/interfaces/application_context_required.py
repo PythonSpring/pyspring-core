@@ -1,7 +1,8 @@
 from typing import Optional
 
-from py_spring_core.core.application.context.application_context import \
-    ApplicationContext
+from py_spring_core.core.application.context.application_context import (
+    ApplicationContext,
+)
 
 
 class ApplicationContextRequired:
