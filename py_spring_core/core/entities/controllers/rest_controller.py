@@ -3,6 +3,7 @@ from fastapi import APIRouter, FastAPI
 from functools import partial
 
 from py_spring_core.core.entities.controllers.route_mapping import RouteRegistration
+from py_spring_core.core.entities.middlewares.middleware import Middleware
 
 
 class RestController:
@@ -15,7 +16,7 @@ class RestController:
     - Providing access to the FastAPI `APIRouter` and `FastAPI` app instances
     - Exposing the controller's configuration, including the URL prefix
 
-    Subclasses of `RestController` should override the `register_routes` and `register_middlewares` methods to add their own routes and middleware to the controller.
+    Subclasses of `RestController` should override the `register_routes` methods to add their own routes and middleware to the controller.
     """
 
     app: FastAPI
@@ -52,8 +53,6 @@ class RestController:
                 include_in_schema=route.include_in_schema,
                 name=route.name,
             )
-
-    def register_middlewares(self) -> None: ...
 
     def get_router(self) -> APIRouter:
         return self.router

@@ -10,13 +10,15 @@ from py_spring_core.core.entities.controllers.route_mapping import (
     PutMapping,
 )
 from py_spring_core.core.entities.entity_provider import EntityProvider
+from py_spring_core.core.entities.middlewares.middleware import Middleware
+from py_spring_core.core.entities.middlewares.middleware_registry import MiddlewareRegistry
 from py_spring_core.core.entities.properties.properties import Properties
 from py_spring_core.core.interfaces.application_context_required import ApplicationContextRequired
 from py_spring_core.event.application_event_publisher import ApplicationEventPublisher
 from py_spring_core.event.commons import ApplicationEvent
 from py_spring_core.event.application_event_handler_registry import EventListener
 
-__version__ = "0.0.18"
+__version__ = "0.0.19"
 
 __all__ = [
     "PySpringApplication",
@@ -35,4 +37,6 @@ __all__ = [
     "ApplicationEventPublisher",
     "ApplicationEvent",
     "EventListener",
+    "Middleware",
+    "MiddlewareRegistry",
 ]

@@ -4,6 +4,7 @@ from abc import ABC
 from inspect import isclass
 from typing import (
     Annotated,
+    Any,
     Callable,
     Mapping,
     Optional,
@@ -25,6 +26,7 @@ from py_spring_core.core.application.context.application_context_config import (
 from py_spring_core.core.entities.bean_collection import (
     BeanCollection,
     BeanConflictError,
+    BeanView,
     InvalidBeanError,
 )
 from py_spring_core.core.entities.component import Component, ComponentScope
@@ -362,7 +364,7 @@ class BeanManager:
         )
         self.dependency_injector.inject_dependencies(bean_collection_cls)
     
-    def _validate_bean_view(self, view, collection_name: str) -> None:
+    def _validate_bean_view(self, view: BeanView, collection_name: str) -> None:
         """Validate a bean view before adding it to the container."""
         if view.bean_name in self.container_manager.singleton_bean_instance_container:
             raise BeanConflictError(
@@ -563,6 +565,10 @@ class ApplicationContext:
         
         # Initialize singleton beans
         self.bean_manager.init_singleton_beans()
+
+    def inject_dependencies_for_external_object(self, object: Type[Any]) -> None:
+        """Inject dependencies for an external object."""
+        self.dependency_injector.inject_dependencies(object)
 
     def inject_dependencies_for_app_entities(self) -> None:
         """Inject dependencies for all registered app entities."""
