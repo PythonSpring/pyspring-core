@@ -28,6 +28,7 @@ from py_spring_core.core.entities.component import Component, ComponentLifeCycle
 from py_spring_core.core.entities.controllers.rest_controller import RestController
 from py_spring_core.core.entities.controllers.route_mapping import RouteMapping
 from py_spring_core.core.entities.entity_provider import EntityProvider
+from py_spring_core.core.entities.middlewares.middleware_registry import MiddlewareRegistry
 from py_spring_core.core.entities.properties.properties import Properties
 from py_spring_core.core.interfaces.application_context_required import ApplicationContextRequired
 from py_spring_core.event.application_event_handler_registry import ApplicationEventHandlerRegistry
@@ -212,7 +213,17 @@ class PySpringApplication:
             controller._register_decorated_routes(routes)
             router = controller.get_router()
             self.fastapi.include_router(router)
-            controller.register_middlewares()
+            self.__init_middlewares()
+            logger.debug(f"[CONTROLLER INIT] Controller {name} initialized")
+    def __init_middlewares(self) -> None:
+        logger.debug("[MIDDLEWARE INIT] Initialize middlewares...")
+        self_defined_registry_cls = MiddlewareRegistry.get_subclass()
+        if self_defined_registry_cls is None:
+            logger.debug("[MIDDLEWARE INIT] No self defined registry class found")
+            return
+        logger.debug(f"[MIDDLEWARE INIT] Self defined registry class: {self_defined_registry_cls.__name__}")
+        self_defined_registry_cls().apply_middlewares(self.fastapi)
+        logger.debug("[MIDDLEWARE INIT] Middlewares initialized")
 
     def __configure_uvicorn_logging(self):
         """Configure Uvicorn to use Loguru instead of default logging."""
