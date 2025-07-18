@@ -228,7 +228,6 @@ class PySpringApplication:
             controller._register_decorated_routes(routes)
             router = controller.get_router()
             self.fastapi.include_router(router)
-            self.__init_middlewares()
             logger.debug(f"[CONTROLLER INIT] Controller {name} initialized")
 
     def __init_middlewares(self) -> None:
@@ -298,6 +297,7 @@ class PySpringApplication:
             self.__configure_logging()
             self.__init_app()
             self.__init_controllers()
+            self.__init_middlewares()
             if self.app_config.server_config.enabled:
                 self.__run_server()
         finally:
