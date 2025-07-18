@@ -225,6 +225,11 @@ class PySpringApplication:
         logger.debug(f"[MIDDLEWARE INIT] Inject dependencies for external object: {self_defined_registry_cls.__name__}")
         self.app_context.inject_dependencies_for_external_object(self_defined_registry_cls)
         registry = self_defined_registry_cls()
+
+        middleware_classes = registry.get_middleware_classes()
+        for middleware_class in middleware_classes:
+            logger.debug(f"[MIDDLEWARE INIT] Inject dependencies for middleware: {middleware_class.__name__}")
+            self.app_context.inject_dependencies_for_external_object(middleware_class)
         registry.apply_middlewares(self.fastapi)
         logger.debug("[MIDDLEWARE INIT] Middlewares initialized")
     def __configure_uvicorn_logging(self):
