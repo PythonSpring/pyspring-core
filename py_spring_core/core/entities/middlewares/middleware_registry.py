@@ -12,6 +12,24 @@ from py_spring_core.core.interfaces.single_inheritance_required import SingleInh
 class MiddlewareRegistry(SingleInheritanceRequired["MiddlewareRegistry"], ABC):
     """
     Middleware registry for managing all middlewares
+    
+    This registry pattern eliminates the need for manual middleware registration. 
+    The framework automatically handles middleware registration and execution order.
+    
+    Multiple middleware execution order:
+    When multiple middlewares are registered through this registry, they are automatically 
+    applied to the FastAPI application in the order they are returned by get_middleware_classes().
+    Each middleware wraps the application, forming a stack. The last middleware added is the outermost, 
+    and the first is the innermost.
+    
+    On the request path, the outermost middleware runs first.
+    On the response path, it runs last.
+    
+    For example, if get_middleware_classes() returns [MiddlewareA, MiddlewareB]
+    This results in the following execution order:
+    Request: MiddlewareB → MiddlewareA → route
+    Response: route → MiddlewareA → MiddlewareB
+    This stacking behavior ensures that middlewares are executed in a predictable and controllable order.
     """
     
     @abstractmethod
