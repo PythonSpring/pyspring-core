@@ -1,4 +1,5 @@
 import ast
+import re
 from typing import Any, Iterable, Type
 
 from loguru import logger
@@ -47,8 +48,12 @@ class ClassScanner:
 
         return class_objects
 
-    def scan_classes_for_file_paths(self) -> None:
+    def scan_classes_for_file_paths(self, exclude_file_patterns: Iterable[str]) -> None:
         for file_path in self.file_paths:
+            if any(re.match(pattern, file_path) for pattern in exclude_file_patterns):
+                logger.debug(f"[EXCLUDED FILE] {file_path} is excluded")
+                continue
+
             object_cls_dict: dict[str, Type[object]] = self.extract_classes_from_file(
                 file_path
             )

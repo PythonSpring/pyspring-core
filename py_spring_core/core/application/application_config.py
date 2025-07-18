@@ -36,6 +36,7 @@ class ApplicationConfig(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
     app_src_target_dir: str
+    exclude_file_patterns: list[str] = Field(default_factory=lambda: [r".*/models\.py$"])
     server_config: ServerConfig
     properties_file_path: str
     loguru_config: LoguruConfig
