@@ -17,7 +17,7 @@ class SingleInheritanceRequired(Generic[T], ABC):
         """
         subclasses = cls.__subclasses__()
         if len(subclasses) > 1:
-            raise ValueError(f"Only one subclass is allowed for {cls.__name__}")
+            raise ValueError(f"Only one subclass is allowed for {cls.__name__}, but {len(subclasses)} subclasses: {[subclass.__name__ for subclass in subclasses]} found")
         
     @classmethod
     def get_subclass(cls) -> Optional[Type[T]]:
