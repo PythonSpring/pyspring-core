@@ -92,11 +92,11 @@ class TestComponentFeatures:
 
         This test verifies that:
         1. A component can only be registered once
-        2. Attempting to register the same component again raises an error
-        3. The error message clearly indicates the duplicate registration
+        2. Attempting to register the same component again doesn't raise an error (silent skip)
+        3. The component is only registered once in the container
 
         The test attempts to register the same component twice and verifies
-        that an appropriate error is raised.
+        that it's handled gracefully without errors.
         """
 
         # Define a component
@@ -110,15 +110,15 @@ class TestComponentFeatures:
 
         # Register component first time
         app_context.register_component(TestService)
-        app_context.init_ioc_container()
-
-        # Attempt to register same component again should raise error
-        with pytest.raises(
-            ValueError,
-            match="\\[COMPONENT REGISTRATION ERROR\\] Component: TestService already registered",
-        ):
-            app_context.register_component(TestService)
-            app_context.init_ioc_container()
+        initial_count = len(app_context.container_manager.component_cls_container)
+        
+        # Register same component again - should be silently skipped
+        app_context.register_component(TestService)
+        final_count = len(app_context.container_manager.component_cls_container)
+        
+        # Verify component count didn't change (no duplicate registration)
+        assert final_count == initial_count
+        assert "TestService" in app_context.container_manager.component_cls_container
 
     def test_component_name_override(self, app_context: ApplicationContext):
         """
@@ -147,8 +147,8 @@ class TestComponentFeatures:
         app_context.init_ioc_container()
 
         # Verify component is registered with custom name
-        assert "CustomServiceName" in app_context.component_cls_container
-        assert app_context.component_cls_container["CustomServiceName"] == TestService
+        assert "CustomServiceName" in app_context.container_manager.component_cls_container
+        assert app_context.container_manager.component_cls_container["CustomServiceName"] == TestService
 
     def test_qualifier_with_invalid_component(self, app_context: ApplicationContext):
         """
