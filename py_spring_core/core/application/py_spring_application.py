@@ -250,9 +250,6 @@ class PySpringApplication:
         logging.basicConfig(handlers=[InterceptHandler()], level=log_level, force=True)
 
     def __run_server(self) -> None:
-        
-        
-        
         # Run uvicorn server
         uvicorn.run(
             self.fastapi,
