@@ -1,9 +1,8 @@
-
-
 from abc import ABC
 from typing import Generic, Optional, Type, TypeVar, cast
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class SingleInheritanceRequired(Generic[T], ABC):
     """
@@ -21,8 +20,10 @@ class SingleInheritanceRequired(Generic[T], ABC):
                 continue
             class_dict[subclass.__name__] = subclass
         if len(class_dict) > 1:
-            raise ValueError(f"Only one subclass is allowed for {cls.__name__}, but {len(class_dict)} subclasses: {[subclass.__name__ for subclass in class_dict.values()]} found")
-        
+            raise ValueError(
+                f"Only one subclass is allowed for {cls.__name__}, but {len(class_dict)} subclasses: {[subclass.__name__ for subclass in class_dict.values()]} found"
+            )
+
     @classmethod
     def get_subclass(cls) -> Optional[Type[T]]:
         """

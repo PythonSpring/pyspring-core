@@ -1,13 +1,12 @@
-from fastapi import FastAPI
 import pytest
+from fastapi import FastAPI
 
 from py_spring_core.core.application.context.application_context import (
-    ApplicationContext,
-    ApplicationContextConfig,
-)
+    ApplicationContext, ApplicationContextConfig)
 from py_spring_core.core.entities.bean_collection import BeanCollection
 from py_spring_core.core.entities.component import Component
-from py_spring_core.core.entities.controllers.rest_controller import RestController
+from py_spring_core.core.entities.controllers.rest_controller import \
+    RestController
 from py_spring_core.core.entities.properties.properties import Properties
 
 
@@ -38,20 +37,27 @@ class TestApplicationContext:
 
         assert (
             "TestComponent" in app_context.container_manager.component_cls_container
-            and app_context.container_manager.component_cls_container["TestComponent"] == TestComponent
+            and app_context.container_manager.component_cls_container["TestComponent"]
+            == TestComponent
         )
         assert (
             "TestController" in app_context.container_manager.controller_cls_container
-            and app_context.container_manager.controller_cls_container["TestController"] == TestController
+            and app_context.container_manager.controller_cls_container["TestController"]
+            == TestController
         )
         assert (
-            "TestBeanCollection" in app_context.container_manager.bean_collection_cls_container
-            and app_context.container_manager.bean_collection_cls_container["TestBeanCollection"]
+            "TestBeanCollection"
+            in app_context.container_manager.bean_collection_cls_container
+            and app_context.container_manager.bean_collection_cls_container[
+                "TestBeanCollection"
+            ]
             == TestBeanCollection
         )
         assert (
             "test_properties" in app_context.container_manager.properties_cls_container
-            and app_context.container_manager.properties_cls_container["test_properties"]
+            and app_context.container_manager.properties_cls_container[
+                "test_properties"
+            ]
             == TestProperties
         )
 
@@ -71,9 +77,16 @@ class TestApplicationContext:
         app_context.register_properties(TestProperties)
 
         assert "TestComponent" in app_context.container_manager.component_cls_container
-        assert "TestController" in app_context.container_manager.controller_cls_container
-        assert "TestBeanCollection" in app_context.container_manager.bean_collection_cls_container
-        assert "test_properties" in app_context.container_manager.properties_cls_container
+        assert (
+            "TestController" in app_context.container_manager.controller_cls_container
+        )
+        assert (
+            "TestBeanCollection"
+            in app_context.container_manager.bean_collection_cls_container
+        )
+        assert (
+            "test_properties" in app_context.container_manager.properties_cls_container
+        )
 
     def test_register_invalid_entities_raises_error(
         self, app_context: ApplicationContext
@@ -128,25 +141,25 @@ class TestApplicationContext:
 
         # Test retrieving singleton components
         component_instance = TestComponent()
-        app_context.container_manager.singleton_component_instance_container["TestComponent"] = (
-            component_instance
-        )
+        app_context.container_manager.singleton_component_instance_container[
+            "TestComponent"
+        ] = component_instance
         retrieved_component = app_context.get_component(TestComponent, None)
         assert retrieved_component is component_instance
 
         # Test retrieving singleton beans
         bean_instance = TestBeanCollection()
-        app_context.container_manager.singleton_bean_instance_container["TestBeanCollection"] = (
-            bean_instance
-        )
+        app_context.container_manager.singleton_bean_instance_container[
+            "TestBeanCollection"
+        ] = bean_instance
         retrieved_bean = app_context.get_bean(TestBeanCollection, None)
         assert retrieved_bean is bean_instance
 
         # Test retrieving singleton properties
         properties_instance = TestProperties()
-        app_context.container_manager.singleton_properties_instance_container["test_properties"] = (
-            properties_instance
-        )
+        app_context.container_manager.singleton_properties_instance_container[
+            "test_properties"
+        ] = properties_instance
         retrieved_properties = app_context.get_properties(TestProperties)
         assert retrieved_properties is properties_instance
 

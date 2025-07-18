@@ -1,6 +1,7 @@
 import pytest
 
-from py_spring_core.core.entities.bean_collection import BeanCollection, BeanView
+from py_spring_core.core.entities.bean_collection import (BeanCollection,
+                                                          BeanView)
 from py_spring_core.core.entities.component import Component
 
 

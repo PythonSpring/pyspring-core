@@ -1,13 +1,11 @@
 from abc import ABC
 from typing import Annotated
 
-from fastapi import FastAPI
 import pytest
+from fastapi import FastAPI
 
 from py_spring_core.core.application.context.application_context import (
-    ApplicationContext,
-    ApplicationContextConfig,
-)
+    ApplicationContext, ApplicationContextConfig)
 from py_spring_core.core.entities.component import Component, ComponentScope
 
 
@@ -111,11 +109,11 @@ class TestComponentFeatures:
         # Register component first time
         app_context.register_component(TestService)
         initial_count = len(app_context.container_manager.component_cls_container)
-        
+
         # Register same component again - should be silently skipped
         app_context.register_component(TestService)
         final_count = len(app_context.container_manager.component_cls_container)
-        
+
         # Verify component count didn't change (no duplicate registration)
         assert final_count == initial_count
         assert "TestService" in app_context.container_manager.component_cls_container
@@ -147,8 +145,13 @@ class TestComponentFeatures:
         app_context.init_ioc_container()
 
         # Verify component is registered with custom name
-        assert "CustomServiceName" in app_context.container_manager.component_cls_container
-        assert app_context.container_manager.component_cls_container["CustomServiceName"] == TestService
+        assert (
+            "CustomServiceName" in app_context.container_manager.component_cls_container
+        )
+        assert (
+            app_context.container_manager.component_cls_container["CustomServiceName"]
+            == TestService
+        )
 
     def test_qualifier_with_invalid_component(self, app_context: ApplicationContext):
         """

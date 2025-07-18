@@ -7,32 +7,34 @@ from fastapi import APIRouter, FastAPI
 from loguru import logger
 
 from py_spring_core.commons.class_scanner import ClassScanner
-from py_spring_core.commons.config_file_template_generator.config_file_template_generator import (
-    ConfigFileTemplateGenerator,
-)
+from py_spring_core.commons.config_file_template_generator.config_file_template_generator import \
+    ConfigFileTemplateGenerator
 from py_spring_core.commons.file_path_scanner import FilePathScanner
 from py_spring_core.commons.type_checking_service import TypeCheckingService
-from py_spring_core.core.application.application_config import (
-    ApplicationConfigRepository,
-)
+from py_spring_core.core.application.application_config import \
+    ApplicationConfigRepository
 from py_spring_core.core.application.commons import AppEntities
-from py_spring_core.core.application.context.application_context import (
-    ApplicationContext,
-)
-from py_spring_core.core.application.context.application_context_config import (
-    ApplicationContextConfig,
-)
+from py_spring_core.core.application.context.application_context import \
+    ApplicationContext
+from py_spring_core.core.application.context.application_context_config import \
+    ApplicationContextConfig
 from py_spring_core.core.application.loguru_config import LogFormat
 from py_spring_core.core.entities.bean_collection import BeanCollection
-from py_spring_core.core.entities.component import Component, ComponentLifeCycle
-from py_spring_core.core.entities.controllers.rest_controller import RestController
+from py_spring_core.core.entities.component import (Component,
+                                                    ComponentLifeCycle)
+from py_spring_core.core.entities.controllers.rest_controller import \
+    RestController
 from py_spring_core.core.entities.controllers.route_mapping import RouteMapping
 from py_spring_core.core.entities.entity_provider import EntityProvider
-from py_spring_core.core.entities.middlewares.middleware_registry import MiddlewareRegistry
+from py_spring_core.core.entities.middlewares.middleware_registry import \
+    MiddlewareRegistry
 from py_spring_core.core.entities.properties.properties import Properties
-from py_spring_core.core.interfaces.application_context_required import ApplicationContextRequired
-from py_spring_core.event.application_event_handler_registry import ApplicationEventHandlerRegistry
-from py_spring_core.event.application_event_publisher import ApplicationEventPublisher
+from py_spring_core.core.interfaces.application_context_required import \
+    ApplicationContextRequired
+from py_spring_core.event.application_event_handler_registry import \
+    ApplicationEventHandlerRegistry
+from py_spring_core.event.application_event_publisher import \
+    ApplicationEventPublisher
 
 
 class PySpringApplication:
@@ -81,8 +83,9 @@ class PySpringApplication:
             properties_path=self.app_config.properties_file_path
         )
         self.fastapi = FastAPI()
-        self.app_context = ApplicationContext(config=self.app_context_config, server=self.fastapi)
-       
+        self.app_context = ApplicationContext(
+            config=self.app_context_config, server=self.fastapi
+        )
 
         self.classes_with_handlers: dict[
             Type[AppEntities], Callable[[Type[Any]], None]
@@ -101,7 +104,7 @@ class PySpringApplication:
         config = self.app_config.loguru_config
         if not config.log_file_path:
             return
-        
+
         # Use the format field from config which contains the actual format string
         logger.add(
             config.log_file_path,
@@ -113,10 +116,7 @@ class PySpringApplication:
         self.__configure_uvicorn_logging()
 
     def _get_system_managed_classes(self) -> Iterable[Type[Component]]:
-        return [
-            ApplicationEventPublisher,
-            ApplicationEventHandlerRegistry
-        ]
+        return [ApplicationEventPublisher, ApplicationEventHandlerRegistry]
 
     def _scan_classes_for_project(self) -> Iterable[Type[object]]:
         self.app_class_scanner.scan_classes_for_file_paths()
@@ -129,7 +129,9 @@ class PySpringApplication:
                     continue
                 handler(_cls)
 
-    def _get_all_entities_from_entity_providers(self, entity_providers: Iterable[EntityProvider]) -> Iterable[Type[AppEntities]]:
+    def _get_all_entities_from_entity_providers(
+        self, entity_providers: Iterable[EntityProvider]
+    ) -> Iterable[Type[AppEntities]]:
         entities: list[Type[AppEntities]] = []
         for provider in entity_providers:
             entities.extend(provider.get_entities())
@@ -165,7 +167,9 @@ class PySpringApplication:
         for provider in providers:
             provider.provider_init()
 
-    def _inject_application_context_to_context_required(self, classes: Iterable[Type[object]]) -> None:
+    def _inject_application_context_to_context_required(
+        self, classes: Iterable[Type[object]]
+    ) -> None:
         for cls in classes:
             if not issubclass(cls, ApplicationContextRequired):
                 continue
@@ -174,10 +178,17 @@ class PySpringApplication:
     def _prepare_injected_classes(self) -> Iterable[Type[object]]:
         scanned_classes = self._scan_classes_for_project()
         system_managed_classes = self._get_system_managed_classes()
-        provider_entities = self._get_all_entities_from_entity_providers(self.entity_providers)
+        provider_entities = self._get_all_entities_from_entity_providers(
+            self.entity_providers
+        )
         provider_classes = [provider.__class__ for provider in self.entity_providers]
         # providers typically requires app context, so add to classess to inject
-        classes_to_inject = [*scanned_classes, *system_managed_classes, *provider_entities, *provider_classes]
+        classes_to_inject = [
+            *scanned_classes,
+            *system_managed_classes,
+            *provider_entities,
+            *provider_classes,
+        ]
         return classes_to_inject
 
     def __init_app(self) -> None:
@@ -208,32 +219,43 @@ class PySpringApplication:
         controllers = self.app_context.get_controller_instances()
         for controller in controllers:
             name = controller.__class__.__name__
-            routes = RouteMapping.routes.get(name, set())        
+            routes = RouteMapping.routes.get(name, set())
             controller.post_construct()
             controller._register_decorated_routes(routes)
             router = controller.get_router()
             self.fastapi.include_router(router)
             self.__init_middlewares()
             logger.debug(f"[CONTROLLER INIT] Controller {name} initialized")
+
     def __init_middlewares(self) -> None:
         logger.debug("[MIDDLEWARE INIT] Initialize middlewares...")
         self_defined_registry_cls = MiddlewareRegistry.get_subclass()
         if self_defined_registry_cls is None:
             logger.debug("[MIDDLEWARE INIT] No self defined registry class found")
             return
-        logger.debug(f"[MIDDLEWARE INIT] Self defined registry class: {self_defined_registry_cls.__name__}")
-        logger.debug(f"[MIDDLEWARE INIT] Inject dependencies for external object: {self_defined_registry_cls.__name__}")
-        self.app_context.inject_dependencies_for_external_object(self_defined_registry_cls)
+        logger.debug(
+            f"[MIDDLEWARE INIT] Self defined registry class: {self_defined_registry_cls.__name__}"
+        )
+        logger.debug(
+            f"[MIDDLEWARE INIT] Inject dependencies for external object: {self_defined_registry_cls.__name__}"
+        )
+        self.app_context.inject_dependencies_for_external_object(
+            self_defined_registry_cls
+        )
         registry = self_defined_registry_cls()
 
         middleware_classes = registry.get_middleware_classes()
         for middleware_class in middleware_classes:
-            logger.debug(f"[MIDDLEWARE INIT] Inject dependencies for middleware: {middleware_class.__name__}")
+            logger.debug(
+                f"[MIDDLEWARE INIT] Inject dependencies for middleware: {middleware_class.__name__}"
+            )
             self.app_context.inject_dependencies_for_external_object(middleware_class)
         registry.apply_middlewares(self.fastapi)
         logger.debug("[MIDDLEWARE INIT] Middlewares initialized")
+
     def __configure_uvicorn_logging(self):
         """Configure Uvicorn to use Loguru instead of default logging."""
+
         # Configure Uvicorn to use Loguru
         # Intercept standard logging and redirect to loguru
         class InterceptHandler(logging.Handler):
@@ -250,7 +272,9 @@ class PySpringApplication:
                     frame = frame.f_back
                     depth += 1
 
-                logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+                logger.opt(depth=depth, exception=record.exc_info).log(
+                    level, record.getMessage()
+                )
 
         # Remove default uvicorn logger and add intercept handler
         log_level = self.app_config.loguru_config.log_level.value

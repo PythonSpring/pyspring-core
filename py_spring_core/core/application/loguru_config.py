@@ -18,6 +18,7 @@ class LogFormat(str, Enum):
     TEXT = "text"
     JSON = "json"
 
+
 class LoguruConfig(BaseModel):
     log_format: str = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "

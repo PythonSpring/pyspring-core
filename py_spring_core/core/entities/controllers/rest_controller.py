@@ -1,8 +1,10 @@
-from typing import Iterable
-from fastapi import APIRouter, FastAPI
 from functools import partial
+from typing import Iterable
 
-from py_spring_core.core.entities.controllers.route_mapping import RouteRegistration
+from fastapi import APIRouter, FastAPI
+
+from py_spring_core.core.entities.controllers.route_mapping import \
+    RouteRegistration
 from py_spring_core.core.entities.middlewares.middleware import Middleware
 
 
