@@ -28,6 +28,10 @@ jobs:
         run: |
           pdm install --prod
 
+      - name: Run tests
+        run: |
+          pdm run pytest
+
       - name: Build the package
         run: |
           pdm build
