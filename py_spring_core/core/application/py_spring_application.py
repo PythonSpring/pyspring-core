@@ -222,9 +222,11 @@ class PySpringApplication:
             logger.debug("[MIDDLEWARE INIT] No self defined registry class found")
             return
         logger.debug(f"[MIDDLEWARE INIT] Self defined registry class: {self_defined_registry_cls.__name__}")
-        self_defined_registry_cls().apply_middlewares(self.fastapi)
+        logger.debug(f"[MIDDLEWARE INIT] Inject dependencies for external object: {self_defined_registry_cls.__name__}")
+        self.app_context.inject_dependencies_for_external_object(self_defined_registry_cls)
+        registry = self_defined_registry_cls()
+        registry.apply_middlewares(self.fastapi)
         logger.debug("[MIDDLEWARE INIT] Middlewares initialized")
-
     def __configure_uvicorn_logging(self):
         """Configure Uvicorn to use Loguru instead of default logging."""
         # Configure Uvicorn to use Loguru
