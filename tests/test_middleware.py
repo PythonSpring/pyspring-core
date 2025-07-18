@@ -140,6 +140,233 @@ class TestMiddleware:
 
         assert received_request == mock_request
 
+    def test_should_skip_default_returns_false(self, mock_request):
+        """
+        Test that should_skip method returns False by default.
+
+        This test verifies that:
+        1. The default implementation of should_skip returns False
+        2. This allows the middleware to process all requests by default
+        """
+        middleware = Middleware(app=Mock())
+        result = middleware.should_skip(mock_request)
+        assert result is False
+
+    def test_should_skip_can_be_overridden(self, mock_request):
+        """
+        Test that should_skip method can be overridden in subclasses.
+
+        This test verifies that:
+        1. Subclasses can override should_skip to provide custom skip logic
+        2. The overridden method is called with the correct request parameter
+        """
+        class SkippingMiddleware(Middleware):
+            def should_skip(self, request: Request) -> bool:
+                return request.method == "GET"
+
+        middleware = SkippingMiddleware(app=Mock())
+        result = middleware.should_skip(mock_request)
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_dispatch_skips_middleware_when_should_skip_returns_true(
+        self, mock_request, mock_call_next
+    ):
+        """
+        Test that dispatch skips middleware processing when should_skip returns True.
+
+        This test verifies that:
+        1. When should_skip returns True, process_request is not called
+        2. The request is passed directly to call_next
+        3. The response from call_next is returned
+        """
+        expected_response = Response(content="skipped response", status_code=200)
+        mock_call_next.return_value = expected_response
+
+        class SkippingMiddleware(Middleware):
+            def should_skip(self, request: Request) -> bool:
+                return True
+
+            async def process_request(self, request: Request) -> Response | None:
+                # This should never be called when should_skip returns True
+                raise AssertionError("process_request should not be called")
+
+        middleware = SkippingMiddleware(app=Mock())
+        result = await middleware.dispatch(mock_request, mock_call_next)
+
+        # Verify call_next was called with the request
+        mock_call_next.assert_called_once_with(mock_request)
+        # Verify the response from call_next is returned
+        assert result == expected_response
+
+    @pytest.mark.asyncio
+    async def test_dispatch_processes_middleware_when_should_skip_returns_false(
+        self, mock_request, mock_call_next
+    ):
+        """
+        Test that dispatch processes middleware when should_skip returns False.
+
+        This test verifies that:
+        1. When should_skip returns False, process_request is called
+        2. The middleware processing logic is executed
+        3. The normal dispatch flow continues
+        """
+        expected_response = Response(content="processed response", status_code=200)
+        mock_call_next.return_value = expected_response
+
+        process_request_called = False
+
+        class ProcessingMiddleware(Middleware):
+            def should_skip(self, request: Request) -> bool:
+                return False
+
+            async def process_request(self, request: Request) -> Response | None:
+                nonlocal process_request_called
+                process_request_called = True
+                return None
+
+        middleware = ProcessingMiddleware(app=Mock())
+        result = await middleware.dispatch(mock_request, mock_call_next)
+
+        # Verify process_request was called
+        assert process_request_called is True
+        # Verify call_next was called
+        mock_call_next.assert_called_once_with(mock_request)
+        # Verify the response from call_next is returned
+        assert result == expected_response
+
+    def test_should_skip_receives_correct_request_parameter(self, mock_request):
+        """
+        Test that should_skip method receives the correct request parameter.
+
+        This test verifies that:
+        1. The should_skip method receives the exact same request object
+        2. The request parameter is passed correctly
+        """
+        received_request = None
+
+        class TestMiddleware(Middleware):
+            def should_skip(self, request: Request) -> bool:
+                nonlocal received_request
+                received_request = request
+                return False
+
+        middleware = TestMiddleware(app=Mock())
+        middleware.should_skip(mock_request)
+
+        assert received_request == mock_request
+
+    @pytest.mark.asyncio
+    async def test_dispatch_with_conditional_skip_logic(self, mock_request, mock_call_next):
+        """
+        Test dispatch with conditional skip logic based on request properties.
+
+        This test verifies that:
+        1. should_skip can use request properties to make skip decisions
+        2. The skip logic works correctly in the dispatch flow
+        3. Both skip and process paths work as expected
+        """
+        expected_response = Response(content="test response", status_code=200)
+        mock_call_next.return_value = expected_response
+
+        class ConditionalMiddleware(Middleware):
+            def should_skip(self, request: Request) -> bool:
+                # Skip GET requests, process others
+                return request.method == "GET"
+
+            async def process_request(self, request: Request) -> Response | None:
+                # This should only be called for non-GET requests
+                return Response(content="processed", status_code=202)
+
+        middleware = ConditionalMiddleware(app=Mock())
+
+        # Test with GET request (should skip)
+        mock_request.method = "GET"
+        result = await middleware.dispatch(mock_request, mock_call_next)
+        
+        assert result == expected_response
+        mock_call_next.assert_called_once_with(mock_request)
+
+        # Reset mock for next test
+        mock_call_next.reset_mock()
+        mock_call_next.return_value = expected_response
+
+        # Test with POST request (should process)
+        mock_request.method = "POST"
+        result = await middleware.dispatch(mock_request, mock_call_next)
+        
+        assert result.body == b"processed" 
+        assert result.status_code == 202
+        mock_call_next.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_dispatch_with_url_based_skip_logic(self, mock_request, mock_call_next):
+        """
+        Test dispatch with URL-based skip logic.
+
+        This test verifies that:
+        1. should_skip can use request URL to make skip decisions
+        2. URL-based filtering works correctly
+        3. The middleware processes only relevant requests
+        """
+        expected_response = Response(content="test response", status_code=200)
+        mock_call_next.return_value = expected_response
+
+        class URLBasedMiddleware(Middleware):
+            def should_skip(self, request: Request) -> bool:
+                # Skip requests to /health endpoint
+                return str(request.url).endswith("/health")
+
+            async def process_request(self, request: Request) -> Response | None:
+                return Response(content="processed", status_code=202)
+
+        middleware = URLBasedMiddleware(app=Mock())
+
+        # Test with health endpoint (should skip)
+        mock_request.url = "http://test.com/health"
+        result = await middleware.dispatch(mock_request, mock_call_next)
+        
+        assert result == expected_response
+        mock_call_next.assert_called_once_with(mock_request)
+
+        # Reset mock for next test
+        mock_call_next.reset_mock()
+        mock_call_next.return_value = expected_response
+
+        # Test with other endpoint (should process)
+        mock_request.url = "http://test.com/api/users"
+        result = await middleware.dispatch(mock_request, mock_call_next)
+        
+        assert result.body == b"processed"
+        assert result.status_code == 202
+        mock_call_next.assert_not_called()
+
+    def test_should_skip_method_signature(self):
+        """
+        Test that should_skip method has the correct signature.
+
+        This test verifies that:
+        1. should_skip is an instance method
+        2. It takes a Request parameter
+        3. It returns a boolean value
+        """
+        middleware = Middleware(app=Mock())
+        
+        # Check that should_skip is a method
+        assert hasattr(middleware, 'should_skip')
+        assert callable(middleware.should_skip)
+        
+        # Check that it's an instance method (not a class method or static method)
+        import inspect
+        sig = inspect.signature(middleware.should_skip)
+        params = list(sig.parameters.keys())
+        
+        # Should have 'request' parameter (self is automatically handled by Python)
+        assert params == ['request']
+        
+        # Check return type annotation
+        assert sig.return_annotation == bool
+
 
 class TestMiddlewareRegistry:
     """Test suite for the MiddlewareRegistry abstract class."""
