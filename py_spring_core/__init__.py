@@ -10,6 +10,7 @@ from py_spring_core.core.entities.controllers.route_mapping import (
     PutMapping,
 )
 from py_spring_core.core.entities.entity_provider import EntityProvider
+from py_spring_core.core.entities.middlewares.middleware import Middleware
 from py_spring_core.core.entities.middlewares.middleware_registry import MiddlewareRegistry
 from py_spring_core.core.entities.properties.properties import Properties
 from py_spring_core.core.interfaces.application_context_required import ApplicationContextRequired
@@ -36,5 +37,6 @@ __all__ = [
     "ApplicationEventPublisher",
     "ApplicationEvent",
     "EventListener",
+    "Middleware",
     "MiddlewareRegistry",
 ]
