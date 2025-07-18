@@ -22,7 +22,7 @@ from py_spring_core.event.application_event_handler_registry import EventListene
 from py_spring_core.event.application_event_publisher import ApplicationEventPublisher
 from py_spring_core.event.commons import ApplicationEvent
 
-__version__ = "0.0.19"
+__version__ = "0.0.20"
 
 __all__ = [
     "PySpringApplication",
