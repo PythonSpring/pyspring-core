@@ -1,8 +1,9 @@
 import ast
-import importlib.util
-from typing import Iterable, Optional, Type
+from typing import Any, Iterable, Type
 
 from loguru import logger
+
+from .module_importer import ModuleImporter
 
 
 class ClassScanner:
@@ -17,6 +18,8 @@ class ClassScanner:
     def __init__(self, file_paths: Iterable[str]) -> None:
         self.file_paths = file_paths
         self.scanned_classes: dict[str, dict[str, Type[object]]] = {}
+        # Use ModuleImporter for handling module imports
+        self._module_importer = ModuleImporter()
 
     def extract_classes_from_file(self, file_path: str) -> dict[str, Type[object]]:
         with open(file_path, "r") as file:
@@ -53,14 +56,12 @@ class ClassScanner:
 
     def import_class_from_file(
         self, file_path: str, class_name: str
-    ) -> Optional[Type[object]]:
-        spec = importlib.util.spec_from_file_location(class_name, file_path)
-        if spec is None:
+    ) -> Type[object] | None:
+        # Use ModuleImporter to handle module import
+        module = self._module_importer.import_module_from_path(file_path)
+        if module is None:
             return None
-        module = importlib.util.module_from_spec(spec)
-        if spec.loader is None:
-            return None
-        spec.loader.exec_module(module)
+            
         cls = getattr(module, class_name, None)
         return cls
 
@@ -79,3 +80,11 @@ class ClassScanner:
                 repr += f"  Class: {class_name}\n"
 
         logger.debug(repr)
+
+    def clear_module_cache(self) -> None:
+        """Clear the module cache. Useful for testing or when you need to force re-import."""
+        self._module_importer.clear_cache()
+
+    def get_cache_size(self) -> int:
+        """Get the number of cached modules."""
+        return self._module_importer.get_cache_size()
