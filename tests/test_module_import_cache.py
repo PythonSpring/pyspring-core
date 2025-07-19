@@ -62,11 +62,11 @@ class TestClass:
             scanner = ClassScanner([temp_file_path])
             
             # First scan
-            scanner.scan_classes_for_file_paths()
+            scanner.scan_classes_for_file_paths([])
             classes1 = list(scanner.get_classes())
             
             # Second scan
-            scanner.scan_classes_for_file_paths()
+            scanner.scan_classes_for_file_paths([])
             classes2 = list(scanner.get_classes())
             
             # Both should return the same classes
@@ -122,14 +122,14 @@ class TestClass:
             scanner = ClassScanner([temp_file_path])
             
             # First scan
-            scanner.scan_classes_for_file_paths()
+            scanner.scan_classes_for_file_paths([])
             classes1 = list(scanner.get_classes())
             
             # Clear cache
             scanner.clear_module_cache()
             
             # Second scan after clearing cache
-            scanner.scan_classes_for_file_paths()
+            scanner.scan_classes_for_file_paths([])
             classes2 = list(scanner.get_classes())
             
             # Classes should be different objects after clearing cache
