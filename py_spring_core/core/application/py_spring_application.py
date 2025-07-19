@@ -123,7 +123,9 @@ class PySpringApplication:
         return [ApplicationEventPublisher, ApplicationEventHandlerRegistry]
 
     def _scan_classes_for_project(self) -> Iterable[Type[object]]:
-        self.app_class_scanner.scan_classes_for_file_paths()
+        self.app_class_scanner.scan_classes_for_file_paths(
+            self.app_config.exclude_file_patterns
+        )
         return self.app_class_scanner.get_classes()
 
     def _register_app_entities(self, classes: Iterable[Type[object]]) -> None:
