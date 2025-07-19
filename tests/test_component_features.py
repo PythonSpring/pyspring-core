@@ -1,4 +1,3 @@
-from abc import ABC
 from typing import Annotated
 
 import pytest

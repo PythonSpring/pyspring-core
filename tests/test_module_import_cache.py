@@ -1,9 +1,8 @@
 import tempfile
 import os
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
 
 from py_spring_core.core.utils import dynamically_import_modules, clear_module_cache
 from py_spring_core.commons.class_scanner import ClassScanner
