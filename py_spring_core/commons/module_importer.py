@@ -59,7 +59,7 @@ class ModuleImporter:
             return module
         except Exception as error:
             logger.warning(f"[MODULE IMPORT] Failed to import {module_name}: {error}")
-            return None
+            raise error
 
     def extract_classes_from_module(self, module: Any) -> list[Type[object]]:
         """
