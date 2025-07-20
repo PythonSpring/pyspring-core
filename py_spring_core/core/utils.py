@@ -12,7 +12,6 @@ _module_importer = ModuleImporter()
 
 def dynamically_import_modules(
     module_paths: Iterable[str],
-    is_ignore_error: bool = True,
     target_subclasses: Iterable[Type[object]] = [],
 ) -> set[Type[object]]:
     """
@@ -29,7 +28,6 @@ def dynamically_import_modules(
     return _module_importer.import_classes_from_paths(
         file_paths=module_paths,
         target_subclasses=target_subclasses,
-        ignore_errors=is_ignore_error
     )
 
 

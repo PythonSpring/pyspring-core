@@ -59,7 +59,7 @@ class ModuleImporter:
             return module
         except Exception as error:
             logger.warning(f"[MODULE IMPORT] Failed to import {module_name}: {error}")
-            return None
+            raise error
 
     def extract_classes_from_module(self, module: Any) -> list[Type[object]]:
         """
@@ -84,8 +84,7 @@ class ModuleImporter:
     def import_classes_from_paths(
         self, 
         file_paths: Iterable[str], 
-        target_subclasses: Iterable[Type[object]] = [],
-        ignore_errors: bool = True
+        target_subclasses: Iterable[Type[object]] = []
     ) -> set[Type[object]]:
         """
         Import classes from multiple file paths with optional filtering.
@@ -93,7 +92,6 @@ class ModuleImporter:
         Args:
             file_paths (Iterable[str]): The file paths of the modules to import.
             target_subclasses (Iterable[Type[object]], optional): Target subclasses to filter. Defaults to [].
-            ignore_errors (bool, optional): Whether to ignore import errors. Defaults to True.
             
         Returns:
             set[Type[object]]: Set of imported classes.
@@ -103,9 +101,7 @@ class ModuleImporter:
         for file_path in file_paths:
             module = self.import_module_from_path(file_path)
             if module is None:
-                if not ignore_errors:
-                    raise ImportError(f"Failed to import module from {file_path}")
-                continue
+                raise ImportError(f"Failed to import module from {file_path}")
                 
             loaded_classes = self.extract_classes_from_module(module)
             all_loaded_classes.extend(loaded_classes)
