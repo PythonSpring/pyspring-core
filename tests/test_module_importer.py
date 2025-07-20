@@ -214,7 +214,7 @@ class TestClass:
 class TestClass:
     def __init__(self):
         # Invalid syntax
-        if True
+        if True:
             pass
 """)
             temp_file_path = f.name
