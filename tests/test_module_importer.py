@@ -204,8 +204,8 @@ class TestClass:
 
     def test_import_nonexistent_file(self):
         """Test importing a non-existent file."""
-        result = self.importer.import_module_from_path("/nonexistent/file.py")
-        assert result is None
+        with pytest.raises(FileNotFoundError):
+            self.importer.import_module_from_path("/nonexistent/file.py")
 
     def test_import_invalid_python_file(self):
         """Test importing a file with invalid Python syntax."""
@@ -213,15 +213,15 @@ class TestClass:
             f.write("""
 class TestClass:
     def __init__(self):
-        # Invalid syntax
-        if True:
+        # Invalid syntax - missing colon
+        if True
             pass
 """)
             temp_file_path = f.name
 
         try:
-            result = self.importer.import_module_from_path(temp_file_path)
-            assert result is None
+            with pytest.raises(SyntaxError):
+                self.importer.import_module_from_path(temp_file_path)
             
         finally:
             os.unlink(temp_file_path) 
