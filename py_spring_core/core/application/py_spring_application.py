@@ -28,6 +28,7 @@ from py_spring_core.core.entities.component.component import Component, Componen
 from py_spring_core.core.entities.controllers.rest_controller import RestController
 from py_spring_core.core.entities.controllers.route_mapping import RouteMapping
 from py_spring_core.core.entities.entity_provider.entity_provider import EntityProvider
+from py_spring_core.core.entities.middlewares.middleware import Middleware
 from py_spring_core.core.entities.middlewares.middleware_registry import (
     MiddlewareRegistry,
 )
@@ -35,11 +36,14 @@ from py_spring_core.core.entities.properties.properties import Properties
 from py_spring_core.core.interfaces.application_context_required import (
     ApplicationContextRequired,
 )
+from py_spring_core.core.interfaces.graceful_shutdown_handler import GracefulShutdownHandler
+from py_spring_core.core.interfaces.single_inheritance_required import SingleInheritanceRequired
 from py_spring_core.event.application_event_handler_registry import (
     ApplicationEventHandlerRegistry,
 )
 from py_spring_core.event.application_event_publisher import ApplicationEventPublisher
 
+import py_spring_core.core.utils as framework_utils
 
 class PySpringApplication:
     """
@@ -232,24 +236,49 @@ class PySpringApplication:
             self.fastapi.include_router(router)
             logger.debug(f"[CONTROLLER INIT] Controller {name} initialized")
 
-    def __init_middlewares(self) -> None:
-        logger.debug("[MIDDLEWARE INIT] Initialize middlewares...")
-        self_defined_registry_cls = MiddlewareRegistry.get_subclass()
-        if self_defined_registry_cls is None:
-            logger.debug("[MIDDLEWARE INIT] No self defined registry class found")
-            return
+    def _init_external_handler(self, base_class: Type[SingleInheritanceRequired], handler_type: str) -> Type[Any] | None:
+        """Initialize an external handler (middleware registry or graceful shutdown handler).
+        
+        Args:
+            base_class: The base class to get subclass from
+            handler_type: The type of handler for logging purposes
+            
+        Returns:
+            The initialized handler class or None if no handler is found
+        
+        Raises:
+            RuntimeError: If the handler has unimplemented abstract methods
+        """
+        self_defined_handler_cls = base_class.get_subclass()
+        if self_defined_handler_cls is None:
+            logger.debug(f"[{handler_type} INIT] No self defined {handler_type.lower()} class found")
+            return None
+
+        unimplemented_abstract_methods = framework_utils.get_unimplemented_abstract_methods(self_defined_handler_cls)
+        if len(unimplemented_abstract_methods) > 0:
+            error_message = f"[{handler_type} INIT] Self defined {handler_type.lower()} class: {self_defined_handler_cls.__name__} has unimplemented abstract methods: {unimplemented_abstract_methods}"
+            logger.error(error_message)
+            raise RuntimeError(error_message)
+
         logger.debug(
-            f"[MIDDLEWARE INIT] Self defined registry class: {self_defined_registry_cls.__name__}"
+            f"[{handler_type} INIT] Self defined {handler_type.lower()} class: {self_defined_handler_cls.__name__}"
         )
         logger.debug(
-            f"[MIDDLEWARE INIT] Inject dependencies for external object: {self_defined_registry_cls.__name__}"
+            f"[{handler_type} INIT] Inject dependencies for external object: {self_defined_handler_cls.__name__}"
         )
         self.app_context.inject_dependencies_for_external_object(
-            self_defined_registry_cls
+            self_defined_handler_cls
         )
-        registry = self_defined_registry_cls()
+        return self_defined_handler_cls
 
-        middleware_classes = registry.get_middleware_classes()
+    def __init_middlewares(self) -> None:
+        logger.debug("[MIDDLEWARE INIT] Initialize middlewares...")
+        registry_cls = self._init_external_handler(MiddlewareRegistry, "MIDDLEWARE")
+        if registry_cls is None:
+            return
+
+        registry: MiddlewareRegistry = registry_cls()
+        middleware_classes: list[Type[Middleware]] = registry.get_middleware_classes()
         for middleware_class in middleware_classes:
             logger.debug(
                 f"[MIDDLEWARE INIT] Inject dependencies for middleware: {middleware_class.__name__}"
@@ -257,6 +286,14 @@ class PySpringApplication:
             self.app_context.inject_dependencies_for_external_object(middleware_class)
         registry.apply_middlewares(self.fastapi)
         logger.debug("[MIDDLEWARE INIT] Middlewares initialized")
+
+    def __init_graceful_shutdown(self) -> None:
+        handler_cls = self._init_external_handler(GracefulShutdownHandler, "GRACEFUL SHUTDOWN")
+        if handler_cls is None:
+            return
+            
+        handler_cls()
+        logger.debug("[GRACEFUL SHUTDOWN INIT] Graceful shutdown initialized")
 
     def __configure_uvicorn_logging(self):
         """Configure Uvicorn to use Loguru instead of default logging."""
@@ -300,6 +337,7 @@ class PySpringApplication:
             self.__init_app()
             self.__init_controllers()
             self.__init_middlewares()
+            self.__init_graceful_shutdown()
             if self.app_config.server_config.enabled:
                 self.__run_server()
         finally:
