@@ -39,6 +39,11 @@ class GracefulShutdownHandler(SingleInheritanceRequired, ABC):
 
     def _handle_sigint(self, signum: int, frame: Optional[FrameType]) -> None:
         try:
+            # Check if shutdown is already in progress to prevent duplicate execution
+            if self._shutdown_event.is_set():
+                logger.debug("[Signal] SIGINT ignored - shutdown already in progress")
+                return
+            
             logger.info("[Signal] SIGINT received")
             self._shutdown_type = ShutdownType.MANUAL
             self._shutdown_event.set()
@@ -49,6 +54,11 @@ class GracefulShutdownHandler(SingleInheritanceRequired, ABC):
 
     def _handle_sigterm(self, signum: int, frame: Optional[FrameType]) -> None:
         try:
+            # Check if shutdown is already in progress to prevent duplicate execution
+            if self._shutdown_event.is_set():
+                logger.debug("[Signal] SIGTERM ignored - shutdown already in progress")
+                return
+            
             logger.info("[Signal] SIGTERM received")
             self._shutdown_type = ShutdownType.SIGTERM
             self._shutdown_event.set()
@@ -110,17 +120,6 @@ class GracefulShutdownHandler(SingleInheritanceRequired, ABC):
         if self._shutdown_start_time is None:
             return None
         return time.time() - self._shutdown_start_time
-
-    def trigger_manual_shutdown(self, shutdown_type: ShutdownType = ShutdownType.MANUAL) -> None:
-        """Manually trigger shutdown without signal."""
-        try:
-            logger.info(f"[Manual Shutdown] Triggering manual shutdown: {shutdown_type.name}")
-            self._shutdown_type = shutdown_type
-            self._shutdown_event.set()
-            self._start_shutdown_timer()
-            self.on_shutdown(shutdown_type)
-        except Exception as error:
-            self.on_error(error)
 
     @abstractmethod
     def on_shutdown(self, shutdown_type: ShutdownType) -> None:
