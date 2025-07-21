@@ -295,8 +295,7 @@ class PySpringApplication:
         handler_cls = self._init_external_handler(GracefulShutdownHandler)
         if handler_cls is None:
             return
-            
-        handler: GracefulShutdownHandler = handler_cls()
+        handler_cls()
         logger.debug(f"[{handler_type} INIT] Graceful shutdown initialized")
 
     def __configure_uvicorn_logging(self):
