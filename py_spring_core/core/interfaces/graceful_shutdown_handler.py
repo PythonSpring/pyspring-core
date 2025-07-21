@@ -81,7 +81,7 @@ class GracefulShutdownHandler(SingleInheritanceRequired, ABC):
         except Exception as error:
             self.on_error(error)
         finally:
-            logger.critical("[Shutdown Timer] Timer exited, exiting application")
+            logger.critical(f"[Shutdown Timer] Timer exited with grace period of {self._timeout_seconds} seconds, exiting application")
             os._exit(0)
 
     def complete_shutdown(self) -> None:
