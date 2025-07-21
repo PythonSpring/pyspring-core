@@ -18,7 +18,7 @@ from py_spring_core.core.entities.properties.properties import Properties
 from py_spring_core.core.interfaces.application_context_required import (
     ApplicationContextRequired,
 )
-from py_spring_core.core.interfaces.graceful_shutdown_handler import GracefulShutdownHandler
+from py_spring_core.core.interfaces.graceful_shutdown_handler import GracefulShutdownHandler, ShutdownType
 from py_spring_core.event.application_event_handler_registry import EventListener
 from py_spring_core.event.application_event_publisher import ApplicationEventPublisher
 from py_spring_core.event.commons import ApplicationEvent
@@ -45,4 +45,5 @@ __all__ = [
     "Middleware",
     "MiddlewareRegistry",
     "GracefulShutdownHandler",
+    "ShutdownType",
 ]
