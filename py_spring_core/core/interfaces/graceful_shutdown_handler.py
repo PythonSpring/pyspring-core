@@ -40,13 +40,7 @@ class GracefulShutdownHandler(SingleInheritanceRequired, ABC):
         self._shutdown_type = ShutdownType.SIGTERM
         self._shutdown_event.set()
         self.on_shutdown(ShutdownType.SIGTERM)
-        
-    def wait(self, timeout: Optional[float] = None) -> ShutdownType:
-        if self._shutdown_event.wait(timeout):
-            return self._shutdown_type or ShutdownType.UNKNOWN
-        
-        self.on_timeout()  # Call on_timeout when timeout occurs
-        return ShutdownType.TIMEOUT
+    
 
     def is_shutdown(self) -> bool:
         return self._shutdown_event.is_set()
