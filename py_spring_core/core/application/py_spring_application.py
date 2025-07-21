@@ -236,7 +236,7 @@ class PySpringApplication:
             self.fastapi.include_router(router)
             logger.debug(f"[CONTROLLER INIT] Controller {name} initialized")
 
-    def _init_external_handler(self, base_class: Type[SingleInheritanceRequired], handler_type: str) -> Type[Any] | None:
+    def _init_external_handler(self, base_class: Type[SingleInheritanceRequired]) -> Type[Any] | None:
         """Initialize an external handler (middleware registry or graceful shutdown handler).
         
         Args:
@@ -249,6 +249,7 @@ class PySpringApplication:
         Raises:
             RuntimeError: If the handler has unimplemented abstract methods
         """
+        handler_type = base_class.__name__
         self_defined_handler_cls = base_class.get_subclass()
         if self_defined_handler_cls is None:
             logger.debug(f"[{handler_type} INIT] No self defined {handler_type.lower()} class found")
@@ -272,8 +273,9 @@ class PySpringApplication:
         return self_defined_handler_cls
 
     def __init_middlewares(self) -> None:
-        logger.debug("[MIDDLEWARE INIT] Initialize middlewares...")
-        registry_cls = self._init_external_handler(MiddlewareRegistry, "MIDDLEWARE")
+        handler_type = MiddlewareRegistry.__name__
+        logger.debug(f"[{handler_type} INIT] Initialize middlewares...")
+        registry_cls = self._init_external_handler(MiddlewareRegistry)
         if registry_cls is None:
             return
 
@@ -281,19 +283,21 @@ class PySpringApplication:
         middleware_classes: list[Type[Middleware]] = registry.get_middleware_classes()
         for middleware_class in middleware_classes:
             logger.debug(
-                f"[MIDDLEWARE INIT] Inject dependencies for middleware: {middleware_class.__name__}"
+                f"[{handler_type} INIT] Inject dependencies for middleware: {middleware_class.__name__}"
             )
             self.app_context.inject_dependencies_for_external_object(middleware_class)
         registry.apply_middlewares(self.fastapi)
-        logger.debug("[MIDDLEWARE INIT] Middlewares initialized")
+        logger.debug(f"[{handler_type} INIT] Middlewares initialized")
 
     def __init_graceful_shutdown(self) -> None:
-        handler_cls = self._init_external_handler(GracefulShutdownHandler, "GRACEFUL SHUTDOWN")
+        handler_type = GracefulShutdownHandler.__name__
+        logger.debug(f"[{handler_type} INIT] Initialize graceful shutdown...")
+        handler_cls = self._init_external_handler(GracefulShutdownHandler)
         if handler_cls is None:
             return
             
         handler_cls()
-        logger.debug("[GRACEFUL SHUTDOWN INIT] Graceful shutdown initialized")
+        logger.debug(f"[{handler_type} INIT] Graceful shutdown initialized")
 
     def __configure_uvicorn_logging(self):
         """Configure Uvicorn to use Loguru instead of default logging."""
