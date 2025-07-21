@@ -53,16 +53,6 @@ class GracefulShutdownHandler(SingleInheritanceRequired, ABC):
 
     def get_type(self) -> Optional[ShutdownType]:
         return self._shutdown_type
-    
-    def trigger_error_shutdown(self, error: Exception) -> None:
-        """
-        Trigger a shutdown due to an error.
-        """
-        self._shutdown_type = ShutdownType.ERROR
-        self._shutdown_event.set()
-        self.on_error(error)
-        self.on_shutdown(ShutdownType.ERROR)
-
 
     @abstractmethod
     def on_shutdown(self, shutdown_type: ShutdownType) -> None:
