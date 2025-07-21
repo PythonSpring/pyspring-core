@@ -39,7 +39,7 @@ class GracefulShutdownHandler(SingleInheritanceRequired, ABC):
 
     def _handle_sigint(self, signum: int, frame: Optional[FrameType]) -> None:
         try:
-            print("[Signal] SIGINT received")
+            logger.info("[Signal] SIGINT received")
             self._shutdown_type = ShutdownType.MANUAL
             self._shutdown_event.set()
             self._start_shutdown_timer()
@@ -49,7 +49,7 @@ class GracefulShutdownHandler(SingleInheritanceRequired, ABC):
 
     def _handle_sigterm(self, signum: int, frame: Optional[FrameType]) -> None:
         try:
-            print("[Signal] SIGTERM received")
+            logger.info("[Signal] SIGTERM received")
             self._shutdown_type = ShutdownType.SIGTERM
             self._shutdown_event.set()
             self._start_shutdown_timer()
