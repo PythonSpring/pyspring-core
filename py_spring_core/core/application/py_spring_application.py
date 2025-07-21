@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any, Callable, Iterable, Type
+from typing import Any, Callable, Iterable, Optional, Type
 
 import uvicorn
 from fastapi import APIRouter, FastAPI
@@ -106,6 +106,7 @@ class PySpringApplication:
         self.type_checking_service = TypeCheckingService(
             self.app_config.app_src_target_dir
         )
+        self.shutdown_handler: Optional[GracefulShutdownHandler] = None
 
     def __configure_logging(self):
         """Applies the logging configuration using Loguru."""
@@ -292,10 +293,19 @@ class PySpringApplication:
     def __init_graceful_shutdown(self) -> None:
         handler_type = GracefulShutdownHandler.__name__
         logger.debug(f"[{handler_type} INIT] Initialize graceful shutdown...")
-        handler_cls = self._init_external_handler(GracefulShutdownHandler)
+        handler_cls: Optional[Type[GracefulShutdownHandler]] = self._init_external_handler(GracefulShutdownHandler)
         if handler_cls is None:
             return
-        handler_cls()
+        
+        # Get shutdown configuration
+        shutdown_config = self.app_config.shutdown_config
+        logger.debug(f"[{handler_type} INIT] Shutdown timeout: {shutdown_config.timeout_seconds}s, enabled: {shutdown_config.enabled}")
+        
+        # Initialize handler with timeout configuration
+        self.shutdown_handler = handler_cls(
+            timeout_seconds=shutdown_config.timeout_seconds,
+            timeout_enabled=shutdown_config.enabled
+        )
         logger.debug(f"[{handler_type} INIT] Graceful shutdown initialized")
 
     def __configure_uvicorn_logging(self):
@@ -344,4 +354,10 @@ class PySpringApplication:
             if self.app_config.server_config.enabled:
                 self.__run_server()
         finally:
+            # Handle component lifecycle destruction
             self._handle_singleton_components_life_cycle(ComponentLifeCycle.Destruction)
+            # Handle graceful shutdown completion
+            if self.shutdown_handler:
+                self.shutdown_handler.complete_shutdown()
+            
+            
