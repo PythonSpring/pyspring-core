@@ -30,16 +30,22 @@ class GracefulShutdownHandler(SingleInheritanceRequired, ABC):
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
     def _handle_sigint(self, signum: int, frame: Optional[FrameType]) -> None:
-        print("[Signal] SIGINT received")
-        self._shutdown_type = ShutdownType.MANUAL
-        self._shutdown_event.set()
-        self.on_shutdown(ShutdownType.MANUAL)
+        try:
+            print("[Signal] SIGINT received")
+            self._shutdown_type = ShutdownType.MANUAL
+            self._shutdown_event.set()
+            self.on_shutdown(ShutdownType.MANUAL)
+        except Exception as error:
+            self.on_error(error)
 
     def _handle_sigterm(self, signum: int, frame: Optional[FrameType]) -> None:
-        print("[Signal] SIGTERM received")
-        self._shutdown_type = ShutdownType.SIGTERM
-        self._shutdown_event.set()
-        self.on_shutdown(ShutdownType.SIGTERM)
+        try:
+            print("[Signal] SIGTERM received")
+            self._shutdown_type = ShutdownType.SIGTERM
+            self._shutdown_event.set()
+            self.on_shutdown(ShutdownType.SIGTERM)
+        except Exception as error:
+            self.on_error(error)
     
 
     def is_shutdown(self) -> bool:
