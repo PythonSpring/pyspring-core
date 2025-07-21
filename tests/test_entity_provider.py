@@ -8,8 +8,8 @@ from py_spring_core.core.application.context.application_context import (
 from py_spring_core.core.application.context.application_context_config import (
     ApplicationContextConfig,
 )
-from py_spring_core.core.entities.component import Component
-from py_spring_core.core.entities.entity_provider import EntityProvider
+from py_spring_core.core.entities.component.component import Component
+from py_spring_core.core.entities.entity_provider.entity_provider import EntityProvider
 
 
 class TestComponent(Component): ...

@@ -23,11 +23,11 @@ from py_spring_core.core.application.context.application_context_config import (
     ApplicationContextConfig,
 )
 from py_spring_core.core.application.loguru_config import LogFormat
-from py_spring_core.core.entities.bean_collection import BeanCollection
-from py_spring_core.core.entities.component import Component, ComponentLifeCycle
+from py_spring_core.core.entities.bean_collection.bean_collection import BeanCollection
+from py_spring_core.core.entities.component.component import Component, ComponentLifeCycle
 from py_spring_core.core.entities.controllers.rest_controller import RestController
 from py_spring_core.core.entities.controllers.route_mapping import RouteMapping
-from py_spring_core.core.entities.entity_provider import EntityProvider
+from py_spring_core.core.entities.entity_provider.entity_provider import EntityProvider
 from py_spring_core.core.entities.middlewares.middleware_registry import (
     MiddlewareRegistry,
 )

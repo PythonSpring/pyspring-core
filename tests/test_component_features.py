@@ -7,7 +7,7 @@ from py_spring_core.core.application.context.application_context import (
     ApplicationContext,
     ApplicationContextConfig,
 )
-from py_spring_core.core.entities.component import Component, ComponentScope
+from py_spring_core.core.entities.component.component import Component, ComponentScope
 
 
 class TestComponentFeatures:

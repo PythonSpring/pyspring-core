@@ -4,7 +4,7 @@ from typing import Callable, ClassVar, Type
 from loguru import logger
 from pydantic import BaseModel
 
-from py_spring_core.core.entities.component import Component
+from py_spring_core.core.entities.component.component import Component
 from py_spring_core.core.interfaces.application_context_required import (
     ApplicationContextRequired,
 )
