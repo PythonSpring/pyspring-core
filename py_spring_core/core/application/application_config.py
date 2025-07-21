@@ -21,6 +21,19 @@ class ServerConfig(BaseModel):
     enabled: bool = Field(default=True)
 
 
+class ShutdownConfig(BaseModel):
+    """
+    Represents the configuration for graceful shutdown.
+
+    Attributes:
+        timeout_seconds: The maximum time in seconds to wait for graceful shutdown before forcing termination.
+        enabled: A boolean flag indicating whether graceful shutdown timeout is enabled.
+    """
+
+    timeout_seconds: float = Field(default=30.0, description="Timeout in seconds for graceful shutdown")
+    enabled: bool = Field(default=True, description="Whether graceful shutdown timeout is enabled")
+
+
 class ApplicationConfig(BaseModel):
     """
     Represents the configuration for the application.
@@ -31,6 +44,7 @@ class ApplicationConfig(BaseModel):
         sqlalchemy_database_uri: The URI for the SQLAlchemy database connection.
         properties_file_path: The file path for the application properties.
         model_file_postfix_patterns: A list of file name patterns for model (for table creation) files.
+        shutdown_config: The configuration for graceful shutdown.
     """
 
     model_config = ConfigDict(protected_namespaces=())
@@ -40,6 +54,7 @@ class ApplicationConfig(BaseModel):
     server_config: ServerConfig
     properties_file_path: str
     loguru_config: LoguruConfig
+    shutdown_config: ShutdownConfig = Field(default_factory=ShutdownConfig)
 
 
 class ApplicationConfigRepository(JsonConfigRepository[ApplicationConfig]):

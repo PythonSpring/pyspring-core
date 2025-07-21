@@ -6,6 +6,7 @@ app_config_template = {
     "properties_file_path": "./application-properties.json",
     "loguru_config": {"log_file_path": "./logs/app.log", "log_level": "DEBUG"},
     "type_checking_mode": "strict",
+    "shutdown_config": {"timeout_seconds": 30.0, "enabled": True},
 }
 
 app_properties_template: dict[str, Any] = {}

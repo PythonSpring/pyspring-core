@@ -1,6 +1,6 @@
 from typing import TypeVar
 
-from py_spring_core.core.entities.component import Component
+from py_spring_core.core.entities.component.component import Component
 from py_spring_core.event.application_event_handler_registry import (
     ApplicationEvent,
     ApplicationEventHandlerRegistry,
