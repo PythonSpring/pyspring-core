@@ -22,7 +22,6 @@ from py_spring_core.core.interfaces.graceful_shutdown_handler import GracefulShu
 from py_spring_core.event.application_event_handler_registry import EventListener
 from py_spring_core.event.application_event_publisher import ApplicationEventPublisher
 from py_spring_core.event.commons import ApplicationEvent
-from py_spring_core.exception_handler.decorator import ExceptionHandler
 
 __version__ = "0.0.24"
 
@@ -47,6 +46,5 @@ __all__ = [
     "MiddlewareRegistry",
     "MiddlewareConfiguration",
     "GracefulShutdownHandler",
-    "ShutdownType",
-    "ExceptionHandler",
+    "ShutdownType"
 ]
