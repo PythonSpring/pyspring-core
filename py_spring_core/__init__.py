@@ -12,7 +12,7 @@ from py_spring_core.core.entities.controllers.route_mapping import (
 from py_spring_core.core.entities.entity_provider.entity_provider import EntityProvider
 from py_spring_core.core.entities.middlewares.middleware import Middleware
 from py_spring_core.core.entities.middlewares.middleware_registry import (
-    MiddlewareRegistry,
+    MiddlewareRegistry, MiddlewareConfiguration
 )
 from py_spring_core.core.entities.properties.properties import Properties
 from py_spring_core.core.interfaces.application_context_required import (
@@ -44,6 +44,7 @@ __all__ = [
     "EventListener",
     "Middleware",
     "MiddlewareRegistry",
+    "MiddlewareConfiguration",
     "GracefulShutdownHandler",
-    "ShutdownType",
+    "ShutdownType"
 ]
