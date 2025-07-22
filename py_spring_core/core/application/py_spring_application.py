@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any, Callable, Iterable, Optional, Type
+from typing import Any, Callable, Iterable, Optional, Type, TypeVar
 
 import uvicorn
 from fastapi import APIRouter, FastAPI
@@ -30,6 +30,7 @@ from py_spring_core.core.entities.controllers.route_mapping import RouteMapping
 from py_spring_core.core.entities.entity_provider.entity_provider import EntityProvider
 from py_spring_core.core.entities.middlewares.middleware import Middleware
 from py_spring_core.core.entities.middlewares.middleware_registry import (
+    MiddlewareConfiguration,
     MiddlewareRegistry,
 )
 from py_spring_core.core.entities.properties.properties import Properties
@@ -45,6 +46,8 @@ from py_spring_core.event.application_event_publisher import ApplicationEventPub
 
 import py_spring_core.core.utils as framework_utils
 
+
+SingleInheritanceRequiredT = TypeVar("SingleInheritanceRequiredT", bound=SingleInheritanceRequired)
 class PySpringApplication:
     """
     The PySpringApplication class is the main entry point for the PySpring application.
@@ -237,7 +240,7 @@ class PySpringApplication:
             self.fastapi.include_router(router)
             logger.debug(f"[CONTROLLER INIT] Controller {name} initialized")
 
-    def _init_external_handler(self, base_class: Type[SingleInheritanceRequired]) -> Type[Any] | None:
+    def _init_external_handler(self, base_class: Type[SingleInheritanceRequiredT]) -> Type[SingleInheritanceRequiredT] | None:
         """Initialize an external handler (middleware registry or graceful shutdown handler).
         
         Args:
@@ -276,12 +279,15 @@ class PySpringApplication:
     def __init_middlewares(self) -> None:
         handler_type = MiddlewareRegistry.__name__
         logger.debug(f"[{handler_type} INIT] Initialize middlewares...")
-        registry_cls = self._init_external_handler(MiddlewareRegistry)
-        if registry_cls is None:
+        middeware_configuration_cls = self._init_external_handler(MiddlewareConfiguration)
+        if middeware_configuration_cls is None:
             return
-
-        registry: MiddlewareRegistry = registry_cls()
+        registry = MiddlewareRegistry()
+        logger.info(f"[{handler_type} INIT] Setup middlewares for registry: {registry.__class__.__name__}")
+        middeware_configuration_cls().configure_middlewares(registry)
+        logger.info(f"[{handler_type} INIT] Middlewares setup for registry: {registry.__class__.__name__} completed")
         middleware_classes: list[Type[Middleware]] = registry.get_middleware_classes()
+        logger.info(f"[{handler_type} INIT] Middleware classes: {', '.join([middleware_class.__name__ for middleware_class in middleware_classes])}")
         for middleware_class in middleware_classes:
             logger.debug(
                 f"[{handler_type} INIT] Inject dependencies for middleware: {middleware_class.__name__}"
@@ -305,7 +311,7 @@ class PySpringApplication:
         self.shutdown_handler = handler_cls(
             timeout_seconds=shutdown_config.timeout_seconds,
             timeout_enabled=shutdown_config.enabled
-        )
+        ) # type: ignore
         logger.debug(f"[{handler_type} INIT] Graceful shutdown initialized")
 
     def __configure_uvicorn_logging(self):
