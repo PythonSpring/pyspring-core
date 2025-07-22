@@ -8,6 +8,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from py_spring_core.core.entities.middlewares.middleware import Middleware
 from py_spring_core.core.entities.middlewares.middleware_registry import (
     MiddlewareRegistry,
+    MiddlewareConfiguration,
 )
 
 
@@ -148,7 +149,11 @@ class TestMiddleware:
         1. The default implementation of should_skip returns False
         2. This allows the middleware to process all requests by default
         """
-        middleware = Middleware(app=Mock())
+        class TestMiddleware(Middleware):
+            async def process_request(self, request: Request) -> Response | None:
+                return None
+
+        middleware = TestMiddleware(app=Mock())
         result = middleware.should_skip(mock_request)
         assert result is False
 
@@ -163,6 +168,9 @@ class TestMiddleware:
         class SkippingMiddleware(Middleware):
             def should_skip(self, request: Request) -> bool:
                 return request.method == "GET"
+
+            async def process_request(self, request: Request) -> Response | None:
+                return None
 
         middleware = SkippingMiddleware(app=Mock())
         result = middleware.should_skip(mock_request)
@@ -250,6 +258,9 @@ class TestMiddleware:
                 nonlocal received_request
                 received_request = request
                 return False
+
+            async def process_request(self, request: Request) -> Response | None:
+                return None
 
         middleware = TestMiddleware(app=Mock())
         middleware.should_skip(mock_request)
@@ -350,7 +361,11 @@ class TestMiddleware:
         2. It takes a Request parameter
         3. It returns a boolean value
         """
-        middleware = Middleware(app=Mock())
+        class TestMiddleware(Middleware):
+            async def process_request(self, request: Request) -> Response | None:
+                return None
+
+        middleware = TestMiddleware(app=Mock())
         
         # Check that should_skip is a method
         assert hasattr(middleware, 'should_skip')
@@ -369,44 +384,237 @@ class TestMiddleware:
 
 
 class TestMiddlewareRegistry:
-    """Test suite for the MiddlewareRegistry abstract class."""
+    """Test suite for the MiddlewareRegistry concrete class."""
 
     @pytest.fixture
     def fastapi_app(self):
         """Fixture that provides a fresh FastAPI application instance."""
         return FastAPI()
 
-    def test_middleware_registry_is_abstract(self):
+    @pytest.fixture
+    def registry(self):
+        """Fixture that provides a fresh MiddlewareRegistry instance."""
+        return MiddlewareRegistry()
+
+    @pytest.fixture
+    def test_middleware_1(self):
+        """Fixture that provides a test middleware class."""
+        class TestMiddleware1(Middleware):
+            async def process_request(self, request: Request) -> Response | None:
+                return None
+        return TestMiddleware1
+
+    @pytest.fixture
+    def test_middleware_2(self):
+        """Fixture that provides another test middleware class."""
+        class TestMiddleware2(Middleware):
+            async def process_request(self, request: Request) -> Response | None:
+                return None
+        return TestMiddleware2
+
+    def test_middleware_registry_instantiation(self):
         """
-        Test that MiddlewareRegistry class is abstract and cannot be instantiated directly.
+        Test that MiddlewareRegistry can be instantiated directly.
 
         This test verifies that:
-        1. MiddlewareRegistry is an abstract base class
-        2. Attempting to instantiate it directly raises an error
+        1. MiddlewareRegistry is a concrete class
+        2. It can be instantiated without errors
+        3. Initial state is correct
         """
-        # This test verifies that MiddlewareRegistry is abstract
-        # We can't test direct instantiation because it's abstract
-        # Instead, we test that it has the abstract method
-        assert hasattr(MiddlewareRegistry, "get_middleware_classes")
-        assert MiddlewareRegistry.get_middleware_classes.__isabstractmethod__
+        registry = MiddlewareRegistry()
+        assert isinstance(registry, MiddlewareRegistry)
+        assert registry.get_middleware_count() == 0
+        assert registry.get_middleware_classes() == []
 
-    def test_get_middleware_classes_is_abstract(self):
+    def test_add_middleware(self, registry, test_middleware_1):
         """
-        Test that get_middleware_classes method is abstract and must be implemented.
+        Test adding middleware to the registry.
 
         This test verifies that:
-        1. get_middleware_classes is an abstract method
-        2. Subclasses must implement this method
+        1. Middleware can be added successfully
+        2. Middleware count increases
+        3. Middleware appears in the classes list
         """
+        registry.add_middleware(test_middleware_1)
+        
+        assert registry.get_middleware_count() == 1
+        assert registry.has_middleware(test_middleware_1)
+        assert test_middleware_1 in registry.get_middleware_classes()
 
-        # Create a concrete subclass without implementing get_middleware_classes
-        class ConcreteRegistry(MiddlewareRegistry):  # type: ignore[abstract]
-            pass
+    def test_add_duplicate_middleware_raises_error(self, registry, test_middleware_1):
+        """
+        Test that adding duplicate middleware raises an error.
 
-        with pytest.raises(TypeError):
-            ConcreteRegistry()  # type: ignore[abstract]
+        This test verifies that:
+        1. Adding the same middleware twice raises ValueError
+        2. The error message is descriptive
+        3. The registry state remains unchanged
+        """
+        registry.add_middleware(test_middleware_1)
+        
+        with pytest.raises(ValueError, match="Middleware TestMiddleware1 is already registered"):
+            registry.add_middleware(test_middleware_1)
+        
+        # Verify state hasn't changed
+        assert registry.get_middleware_count() == 1
 
-    def test_apply_middlewares_adds_middleware_to_app(self, fastapi_app):
+    def test_add_at_index(self, registry, test_middleware_1, test_middleware_2):
+        """
+        Test inserting middleware at specific index.
+
+        This test verifies that:
+        1. Middleware can be inserted at specific positions
+        2. Order is maintained correctly
+        3. Index bounds are respected
+        """
+        registry.add_middleware(test_middleware_1)
+        registry.add_at_index(0, test_middleware_2)
+        
+        classes = registry.get_middleware_classes()
+        assert classes[0] == test_middleware_2
+        assert classes[1] == test_middleware_1
+
+    def test_add_at_invalid_index_raises_error(self, registry, test_middleware_1):
+        """
+        Test that adding at invalid index raises an error.
+
+        This test verifies that:
+        1. Invalid indices raise ValueError
+        2. Error message includes valid range
+        """
+        with pytest.raises(ValueError, match="Index -1 is out of range"):
+            registry.add_at_index(-1, test_middleware_1)
+        
+        with pytest.raises(ValueError, match="Index 1 is out of range"):
+            registry.add_at_index(1, test_middleware_1)
+
+    def test_add_before(self, registry, test_middleware_1, test_middleware_2):
+        """
+        Test inserting middleware before another middleware.
+
+        This test verifies that:
+        1. Middleware can be inserted before target middleware
+        2. Order is correct after insertion
+        """
+        registry.add_middleware(test_middleware_1)
+        registry.add_before(test_middleware_1, test_middleware_2)
+        
+        classes = registry.get_middleware_classes()
+        assert classes[0] == test_middleware_2
+        assert classes[1] == test_middleware_1
+
+    def test_add_before_nonexistent_target_raises_error(self, registry, test_middleware_1, test_middleware_2):
+        """
+        Test that adding before nonexistent target raises error.
+
+        This test verifies that:
+        1. Adding before non-registered middleware raises ValueError
+        2. Error message is descriptive
+        """
+        with pytest.raises(ValueError, match="Target middleware TestMiddleware1 not found"):
+            registry.add_before(test_middleware_1, test_middleware_2)
+
+    def test_add_after(self, registry, test_middleware_1, test_middleware_2):
+        """
+        Test inserting middleware after another middleware.
+
+        This test verifies that:
+        1. Middleware can be inserted after target middleware
+        2. Order is correct after insertion
+        """
+        registry.add_middleware(test_middleware_1)
+        registry.add_after(test_middleware_1, test_middleware_2)
+        
+        classes = registry.get_middleware_classes()
+        assert classes[0] == test_middleware_1
+        assert classes[1] == test_middleware_2
+
+    def test_remove_middleware(self, registry, test_middleware_1):
+        """
+        Test removing middleware from the registry.
+
+        This test verifies that:
+        1. Middleware can be removed successfully
+        2. Middleware count decreases
+        3. Middleware no longer appears in classes list
+        """
+        registry.add_middleware(test_middleware_1)
+        registry.remove_middleware(test_middleware_1)
+        
+        assert registry.get_middleware_count() == 0
+        assert not registry.has_middleware(test_middleware_1)
+        assert test_middleware_1 not in registry.get_middleware_classes()
+
+    def test_remove_nonexistent_middleware_raises_error(self, registry, test_middleware_1):
+        """
+        Test that removing nonexistent middleware raises error.
+
+        This test verifies that:
+        1. Removing non-registered middleware raises ValueError
+        2. Error message is descriptive
+        """
+        with pytest.raises(ValueError, match="Middleware TestMiddleware1 not found"):
+            registry.remove_middleware(test_middleware_1)
+
+    def test_clear_middlewares(self, registry, test_middleware_1, test_middleware_2):
+        """
+        Test clearing all middlewares from the registry.
+
+        This test verifies that:
+        1. All middlewares are removed
+        2. Registry returns to initial state
+        """
+        registry.add_middleware(test_middleware_1)
+        registry.add_middleware(test_middleware_2)
+        
+        registry.clear_middlewares()
+        
+        assert registry.get_middleware_count() == 0
+        assert registry.get_middleware_classes() == []
+
+    def test_get_middleware_index(self, registry, test_middleware_1, test_middleware_2):
+        """
+        Test getting the index of a middleware.
+
+        This test verifies that:
+        1. Index of registered middleware is returned correctly
+        2. Index reflects the actual position in the list
+        """
+        registry.add_middleware(test_middleware_1)
+        registry.add_middleware(test_middleware_2)
+        
+        assert registry.get_middleware_index(test_middleware_1) == 0
+        assert registry.get_middleware_index(test_middleware_2) == 1
+
+    def test_get_middleware_index_nonexistent_raises_error(self, registry, test_middleware_1):
+        """
+        Test that getting index of nonexistent middleware raises error.
+
+        This test verifies that:
+        1. Getting index of non-registered middleware raises ValueError
+        2. Error message is descriptive
+        """
+        with pytest.raises(ValueError, match="Middleware TestMiddleware1 not found"):
+            registry.get_middleware_index(test_middleware_1)
+
+    def test_get_middleware_classes_returns_copy(self, registry, test_middleware_1):
+        """
+        Test that get_middleware_classes returns a copy.
+
+        This test verifies that:
+        1. Modifying returned list doesn't affect internal state
+        2. A copy is returned, not the original list
+        """
+        registry.add_middleware(test_middleware_1)
+        
+        classes = registry.get_middleware_classes()
+        classes.clear()
+        
+        # Original registry should be unchanged
+        assert registry.get_middleware_count() == 1
+        assert registry.has_middleware(test_middleware_1)
+
+    def test_apply_middlewares_adds_middleware_to_app(self, registry, fastapi_app, test_middleware_1, test_middleware_2):
         """
         Test that apply_middlewares correctly adds middleware classes to FastAPI app.
 
@@ -415,33 +623,22 @@ class TestMiddlewareRegistry:
         2. The add_middleware method is called for each middleware class
         3. The app is returned unchanged
         """
-
-        class TestMiddleware1(Middleware):
-            async def process_request(self, request: Request) -> Response | None:
-                return None
-
-        class TestMiddleware2(Middleware):
-            async def process_request(self, request: Request) -> Response | None:
-                return None
-
-        class TestRegistry(MiddlewareRegistry):
-            def get_middleware_classes(self) -> list[type[Middleware]]:
-                return [TestMiddleware1, TestMiddleware2]
+        registry.add_middleware(test_middleware_1)
+        registry.add_middleware(test_middleware_2)
 
         # Mock the add_middleware method
         with patch.object(fastapi_app, "add_middleware") as mock_add_middleware:
-            registry = TestRegistry()
             result = registry.apply_middlewares(fastapi_app)
 
             # Verify add_middleware was called for each middleware class
             assert mock_add_middleware.call_count == 2
-            mock_add_middleware.assert_any_call(TestMiddleware1)
-            mock_add_middleware.assert_any_call(TestMiddleware2)
+            mock_add_middleware.assert_any_call(test_middleware_1)
+            mock_add_middleware.assert_any_call(test_middleware_2)
 
             # Verify the app is returned
             assert result == fastapi_app
 
-    def test_apply_middlewares_with_empty_list(self, fastapi_app):
+    def test_apply_middlewares_with_empty_list(self, registry, fastapi_app):
         """
         Test that apply_middlewares handles empty middleware list correctly.
 
@@ -450,13 +647,7 @@ class TestMiddlewareRegistry:
         2. The app is returned unchanged
         3. No errors occur with empty middleware list
         """
-
-        class EmptyRegistry(MiddlewareRegistry):
-            def get_middleware_classes(self) -> list[type[Middleware]]:
-                return []
-
         with patch.object(fastapi_app, "add_middleware") as mock_add_middleware:
-            registry = EmptyRegistry()
             result = registry.apply_middlewares(fastapi_app)
 
             # Verify add_middleware was not called
@@ -465,7 +656,7 @@ class TestMiddlewareRegistry:
             # Verify the app is returned
             assert result == fastapi_app
 
-    def test_apply_middlewares_preserves_app_state(self, fastapi_app):
+    def test_apply_middlewares_preserves_app_state(self, registry, fastapi_app, test_middleware_1):
         """
         Test that apply_middlewares preserves the FastAPI app state.
 
@@ -473,24 +664,58 @@ class TestMiddlewareRegistry:
         1. The original app object is returned (same reference)
         2. No app properties are modified during middleware application
         """
-
-        class TestMiddleware(Middleware):
-            async def process_request(self, request: Request) -> Response | None:
-                return None
-
-        class TestRegistry(MiddlewareRegistry):
-            def get_middleware_classes(self) -> list[type[Middleware]]:
-                return [TestMiddleware]
+        registry.add_middleware(test_middleware_1)
 
         # Store original app state
         original_app_id = id(fastapi_app)
 
-        registry = TestRegistry()
         result = registry.apply_middlewares(fastapi_app)
 
         # Verify same app object is returned
         assert id(result) == original_app_id
         assert result is fastapi_app
+
+
+class TestMiddlewareConfiguration:
+    """Test suite for the MiddlewareConfiguration class."""
+
+    def test_middleware_configuration_inheritance(self):
+        """
+        Test that MiddlewareConfiguration has proper inheritance.
+
+        This test verifies that:
+        1. MiddlewareConfiguration inherits from SingleInheritanceRequired
+        2. It can be instantiated
+        """
+        class TestConfig(MiddlewareConfiguration):
+            pass
+
+        config = TestConfig()
+        assert isinstance(config, MiddlewareConfiguration)
+
+    def test_setup_middlewares_can_be_overridden(self):
+        """
+        Test that setup_middlewares can be overridden to configure middlewares.
+
+        This test verifies that:
+        1. setup_middlewares can be overridden
+        2. The registry is properly configured when overridden
+        """
+        class TestMiddleware(Middleware):
+            async def process_request(self, request: Request) -> Response | None:
+                return None
+
+        class TestConfig(MiddlewareConfiguration):
+            def setup_middlewares(self, registry: MiddlewareRegistry) -> None:
+                registry.add_middleware(TestMiddleware)
+
+        config = TestConfig()
+        registry = MiddlewareRegistry()
+        
+        config.setup_middlewares(registry)
+        
+        assert registry.has_middleware(TestMiddleware)
+        assert registry.get_middleware_count() == 1
 
 
 class TestMiddlewareIntegration:
@@ -523,11 +748,10 @@ class TestMiddlewareIntegration:
                 execution_order.append("second")
                 return None
 
-        class TestRegistry(MiddlewareRegistry):
-            def get_middleware_classes(self) -> list[type[Middleware]]:
-                return [FirstMiddleware, SecondMiddleware]
-
-        registry = TestRegistry()
+        registry = MiddlewareRegistry()
+        registry.add_middleware(FirstMiddleware)
+        registry.add_middleware(SecondMiddleware)
+        
         app = registry.apply_middlewares(fastapi_app)
 
         # Create a test client to trigger middleware execution
@@ -566,11 +790,10 @@ class TestMiddlewareIntegration:
                 execution_order.append("second")
                 return None
 
-        class TestRegistry(MiddlewareRegistry):
-            def get_middleware_classes(self) -> list[type[Middleware]]:
-                return [BlockingMiddleware, SecondMiddleware]
-
-        registry = TestRegistry()
+        registry = MiddlewareRegistry()
+        registry.add_middleware(BlockingMiddleware)
+        registry.add_middleware(SecondMiddleware)
+        
         app = registry.apply_middlewares(fastapi_app)
 
         @app.get("/test")
@@ -587,48 +810,77 @@ class TestMiddlewareIntegration:
         assert response.status_code == 403
         assert response.text == "blocked"
 
-    def test_middleware_registry_single_inheritance(self):
+    def test_middleware_registry_with_configuration(self):
         """
-        Test that MiddlewareRegistry enforces single inheritance.
+        Test using MiddlewareRegistry with MiddlewareConfiguration.
 
         This test verifies that:
-        1. MiddlewareRegistry implements SingleInheritanceRequired
-        2. Multiple inheritance is prevented
+        1. MiddlewareConfiguration can configure a MiddlewareRegistry
+        2. The configuration is applied correctly
         """
-        # This test assumes SingleInheritanceRequired prevents multiple inheritance
-        # The actual behavior depends on the implementation of SingleInheritanceRequired
-
-        class TestRegistry(MiddlewareRegistry):
-            def get_middleware_classes(self) -> list[type[Middleware]]:
-                return []
-
-        # Should be able to create a single inheritance registry
-        registry = TestRegistry()
-        assert isinstance(registry, MiddlewareRegistry)
-
-    def test_middleware_type_hints(self):
-        """
-        Test that middleware classes have correct type hints.
-
-        This test verifies that:
-        1. get_middleware_classes returns the correct type
-        2. process_request has correct parameter and return type hints
-        """
-
         class TestMiddleware(Middleware):
             async def process_request(self, request: Request) -> Response | None:
                 return None
 
-        class TestRegistry(MiddlewareRegistry):
-            def get_middleware_classes(self) -> list[type[Middleware]]:
-                return [TestMiddleware]
+        class TestConfig(MiddlewareConfiguration):
+            def setup_middlewares(self, registry: MiddlewareRegistry) -> None:
+                registry.add_middleware(TestMiddleware)
 
-        registry = TestRegistry()
-        middleware_classes = registry.get_middleware_classes()
+        config = TestConfig()
+        registry = MiddlewareRegistry()
+        
+        config.setup_middlewares(registry)
+        
+        assert registry.has_middleware(TestMiddleware)
+        assert registry.get_middleware_count() == 1
 
-        # Verify type hints
-        assert isinstance(middleware_classes, list)
-        assert all(
-            issubclass(middleware_class, Middleware)
-            for middleware_class in middleware_classes
-        )
+    def test_middleware_execution_order_with_skip_logic(self, fastapi_app):
+        """
+        Test middleware execution order with skip logic.
+
+        This test verifies that:
+        1. Middlewares with skip logic are handled correctly
+        2. Order is maintained even when some middlewares skip
+        """
+        execution_order = []
+
+        class ConditionalMiddleware(Middleware):
+            def should_skip(self, request: Request) -> bool:
+                return "/skip" in str(request.url)
+            
+            async def process_request(self, request: Request) -> Response | None:
+                execution_order.append("conditional")
+                return None
+
+        class AlwaysRunMiddleware(Middleware):
+            async def process_request(self, request: Request) -> Response | None:
+                execution_order.append("always")
+                return None
+
+        registry = MiddlewareRegistry()
+        registry.add_middleware(ConditionalMiddleware)
+        registry.add_middleware(AlwaysRunMiddleware)
+        
+        app = registry.apply_middlewares(fastapi_app)
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"message": "test"}
+
+        @app.get("/skip")
+        async def skip_endpoint():
+            return {"message": "skip"}
+
+        client = TestClient(app)
+        
+        # Test normal endpoint
+        execution_order.clear()
+        response = client.get("/test")
+        assert execution_order == ["always", "conditional"]
+        assert response.status_code == 200
+
+        # Test skip endpoint
+        execution_order.clear()
+        response = client.get("/skip")
+        assert execution_order == ["always"]  # Only AlwaysRunMiddleware should execute
+        assert response.status_code == 200
