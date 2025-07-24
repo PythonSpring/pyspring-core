@@ -6,7 +6,8 @@ T = TypeVar("T")
 
 class SingleInheritanceRequired(Generic[T], ABC):
     """
-    A singleton component is a component that only allow subclasses to be inherited.
+    A base class that ensures only one subclass can be inherited from it.
+    This enforces the single inheritance constraint for specific component types.
     """
 
     @classmethod

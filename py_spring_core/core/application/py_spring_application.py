@@ -111,7 +111,7 @@ class PySpringApplication:
         )
         self.shutdown_handler: Optional[GracefulShutdownHandler] = None
 
-    def __configure_logging(self):
+    def _configure_logging(self):
         """Applies the logging configuration using Loguru."""
         config = self.app_config.loguru_config
         if not config.log_file_path:
@@ -125,7 +125,7 @@ class PySpringApplication:
             retention=config.log_retention,
             serialize=config.format == LogFormat.JSON,
         )
-        self.__configure_uvicorn_logging()
+        self._configure_uvicorn_logging()
 
     def _get_system_managed_classes(self) -> Iterable[Type[Component]]:
         return [ApplicationEventPublisher, ApplicationEventHandlerRegistry]
@@ -205,7 +205,7 @@ class PySpringApplication:
         ]
         return classes_to_inject
 
-    def __init_app(self) -> None:
+    def _init_app(self) -> None:
         classes_to_inject = self._prepare_injected_classes()
         self._inject_application_context_to_context_required(classes_to_inject)
         self._register_app_entities(classes_to_inject)
@@ -229,7 +229,7 @@ class PySpringApplication:
                 case ComponentLifeCycle.Destruction:
                     component.finish_destruction_cycle()
 
-    def __init_controllers(self) -> None:
+    def _init_controllers(self) -> None:
         controllers = self.app_context.get_controller_instances()
         for controller in controllers:
             name = controller.__class__.__name__
@@ -245,7 +245,6 @@ class PySpringApplication:
         
         Args:
             base_class: The base class to get subclass from
-            handler_type: The type of handler for logging purposes
             
         Returns:
             The initialized handler class or None if no handler is found
@@ -254,37 +253,35 @@ class PySpringApplication:
             RuntimeError: If the handler has unimplemented abstract methods
         """
         handler_type = base_class.__name__
-        self_defined_handler_cls = base_class.get_subclass()
-        if self_defined_handler_cls is None:
+        handler_cls = base_class.get_subclass()
+        if handler_cls is None:
             logger.debug(f"[{handler_type} INIT] No self defined {handler_type.lower()} class found")
             return None
 
-        unimplemented_abstract_methods = framework_utils.get_unimplemented_abstract_methods(self_defined_handler_cls)
+        unimplemented_abstract_methods = framework_utils.get_unimplemented_abstract_methods(handler_cls)
         if len(unimplemented_abstract_methods) > 0:
-            error_message = f"[{handler_type} INIT] Self defined {handler_type.lower()} class: {self_defined_handler_cls.__name__} has unimplemented abstract methods: {unimplemented_abstract_methods}"
+            error_message = f"[{handler_type} INIT] Self defined {handler_type.lower()} class: {handler_cls.__name__} has unimplemented abstract methods: {unimplemented_abstract_methods}"
             logger.error(error_message)
             raise RuntimeError(error_message)
 
         logger.debug(
-            f"[{handler_type} INIT] Self defined {handler_type.lower()} class: {self_defined_handler_cls.__name__}"
+            f"[{handler_type} INIT] Self defined {handler_type.lower()} class: {handler_cls.__name__}"
         )
         logger.debug(
-            f"[{handler_type} INIT] Inject dependencies for external object: {self_defined_handler_cls.__name__}"
+            f"[{handler_type} INIT] Inject dependencies for external object: {handler_cls.__name__}"
         )
-        self.app_context.inject_dependencies_for_external_object(
-            self_defined_handler_cls
-        )
-        return self_defined_handler_cls
+        self.app_context.inject_dependencies_for_external_object(handler_cls)
+        return handler_cls
 
-    def __init_middlewares(self) -> None:
+    def _init_middlewares(self) -> None:
         handler_type = MiddlewareRegistry.__name__
         logger.debug(f"[{handler_type} INIT] Initialize middlewares...")
-        middeware_configuration_cls = self._init_external_handler(MiddlewareConfiguration)
-        if middeware_configuration_cls is None:
+        middleware_config_cls = self._init_external_handler(MiddlewareConfiguration)
+        if middleware_config_cls is None:
             return
         registry = MiddlewareRegistry()
         logger.info(f"[{handler_type} INIT] Setup middlewares for registry: {registry.__class__.__name__}")
-        middeware_configuration_cls().configure_middlewares(registry)
+        middleware_config_cls().configure_middlewares(registry)
         logger.info(f"[{handler_type} INIT] Middlewares setup for registry: {registry.__class__.__name__} completed")
         middleware_classes: list[Type[Middleware]] = registry.get_middleware_classes()
         logger.info(f"[{handler_type} INIT] Middleware classes: {', '.join([middleware_class.__name__ for middleware_class in middleware_classes])}")
@@ -296,7 +293,7 @@ class PySpringApplication:
         registry.apply_middlewares(self.fastapi)
         logger.debug(f"[{handler_type} INIT] Middlewares initialized")
 
-    def __init_graceful_shutdown(self) -> None:
+    def _init_graceful_shutdown(self) -> None:
         handler_type = GracefulShutdownHandler.__name__
         logger.debug(f"[{handler_type} INIT] Initialize graceful shutdown...")
         handler_cls: Optional[Type[GracefulShutdownHandler]] = self._init_external_handler(GracefulShutdownHandler)
@@ -314,7 +311,7 @@ class PySpringApplication:
         ) # type: ignore
         logger.debug(f"[{handler_type} INIT] Graceful shutdown initialized")
 
-    def __configure_uvicorn_logging(self):
+    def _configure_uvicorn_logging(self):
         """Configure Uvicorn to use Loguru instead of default logging."""
 
         # Configure Uvicorn to use Loguru
@@ -341,7 +338,7 @@ class PySpringApplication:
         log_level = self.app_config.loguru_config.log_level.value
         logging.basicConfig(handlers=[InterceptHandler()], level=log_level, force=True)
 
-    def __run_server(self) -> None:
+    def _run_server(self) -> None:
         # Run uvicorn server
         uvicorn.run(
             self.fastapi,
@@ -352,13 +349,13 @@ class PySpringApplication:
 
     def run(self) -> None:
         try:
-            self.__configure_logging()
-            self.__init_app()
-            self.__init_controllers()
-            self.__init_middlewares()
-            self.__init_graceful_shutdown()
+            self._configure_logging()
+            self._init_app()
+            self._init_controllers()
+            self._init_middlewares()
+            self._init_graceful_shutdown()
             if self.app_config.server_config.enabled:
-                self.__run_server()
+                self._run_server()
         finally:
             # Handle component lifecycle destruction
             self._handle_singleton_components_life_cycle(ComponentLifeCycle.Destruction)

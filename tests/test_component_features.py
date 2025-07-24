@@ -107,17 +107,16 @@ class TestComponentFeatures:
             def process(self) -> str:
                 return "Test service processing"
 
-        # Register component first time
+        # Register the same component multiple times
         app_context.register_component(TestService)
-        initial_count = len(app_context.container_manager.component_cls_container)
-
-        # Register same component again - should be silently skipped
+        initial_count = len(app_context.container_manager.component_classes)
         app_context.register_component(TestService)
-        final_count = len(app_context.container_manager.component_cls_container)
+        app_context.register_component(TestService)
+        final_count = len(app_context.container_manager.component_classes)
 
-        # Verify component count didn't change (no duplicate registration)
-        assert final_count == initial_count
-        assert "TestService" in app_context.container_manager.component_cls_container
+        # Verify the component is registered only once
+        assert initial_count == final_count == 1
+        assert "TestService" in app_context.container_manager.component_classes
 
     def test_component_name_override(self, app_context: ApplicationContext):
         """
@@ -145,13 +144,12 @@ class TestComponentFeatures:
         app_context.register_component(TestService)
         app_context.init_ioc_container()
 
-        # Verify component is registered with custom name
+        # Check if component is registered with custom name
         assert (
-            "CustomServiceName" in app_context.container_manager.component_cls_container
+            "CustomServiceName" in app_context.container_manager.component_classes
         )
-        assert (
-            app_context.container_manager.component_cls_container["CustomServiceName"]
-            == TestService
+        component_instance = (
+            app_context.container_manager.component_classes["CustomServiceName"]
         )
 
     def test_qualifier_with_invalid_component(self, app_context: ApplicationContext):

@@ -54,32 +54,32 @@ class ApplicationContextView(BaseModel):
     """View model for application context state."""
 
     config: ApplicationContextConfig
-    component_cls_container: list[str]
-    singleton_component_instance_container: list[str]
+    component_classes: list[str]
+    component_instances: list[str]
 
 
 class ContainerManager:
     """Manages containers for different types of entities in the application context."""
 
     def __init__(self):
-        self.component_cls_container: dict[str, Type[Component]] = {}
-        self.controller_cls_container: dict[str, Type[RestController]] = {}
-        self.singleton_component_instance_container: dict[str, Component] = {}
+        self.component_classes: dict[str, Type[Component]] = {}
+        self.controller_classes: dict[str, Type[RestController]] = {}
+        self.component_instances: dict[str, Component] = {}
 
-        self.bean_collection_cls_container: dict[str, Type[BeanCollection]] = {}
-        self.singleton_bean_instance_container: dict[str, object] = {}
+        self.bean_collection_classes: dict[str, Type[BeanCollection]] = {}
+        self.bean_instances: dict[str, object] = {}
 
-        self.properties_cls_container: dict[str, Type[Properties]] = {}
-        self.singleton_properties_instance_container: dict[str, Properties] = {}
+        self.properties_classes: dict[str, Type[Properties]] = {}
+        self.properties_instances: dict[str, Properties] = {}
 
     def is_entity_in_container(self, entity_cls: Type[AppEntities]) -> bool:
         """Check if an entity class is registered in any container."""
         cls_name = entity_cls.__name__
         return (
-            cls_name in self.component_cls_container
-            or cls_name in self.controller_cls_container
-            or cls_name in self.bean_collection_cls_container
-            or cls_name in self.properties_cls_container
+            cls_name in self.component_classes
+            or cls_name in self.controller_classes
+            or cls_name in self.bean_collection_classes
+            or cls_name in self.properties_classes
         )
 
 
@@ -241,7 +241,7 @@ class ComponentManager:
             )
 
         component_cls_name = component_cls.get_name()
-        existing_component = self.container_manager.component_cls_container.get(
+        existing_component = self.container_manager.component_classes.get(
             component_cls_name
         )
 
@@ -253,7 +253,7 @@ class ComponentManager:
         ):
             return
 
-        self.container_manager.component_cls_container[component_cls_name] = (
+        self.container_manager.component_classes[component_cls_name] = (
             component_cls
         )
 
@@ -266,7 +266,7 @@ class ComponentManager:
 
         target_cls_name = self._determine_target_cls_name(component_cls, qualifier)
 
-        if target_cls_name not in self.container_manager.component_cls_container:
+        if target_cls_name not in self.container_manager.component_classes:
             return None
 
         scope = component_cls.get_scope()
@@ -274,7 +274,7 @@ class ComponentManager:
             case ComponentScope.Singleton:
                 return cast(
                     T,
-                    self.container_manager.singleton_component_instance_container.get(
+                    self.container_manager.component_instances.get(
                         target_cls_name
                     ),
                 )
@@ -340,7 +340,7 @@ class ComponentManager:
                 subclass_component_cls, subclass_component_cls.get_name()
             )
             if instance is not None:
-                self.container_manager.singleton_component_instance_container[
+                self.container_manager.component_instances[
                     subclass_component_cls.get_name()
                 ] = instance
 
@@ -349,7 +349,7 @@ class ComponentManager:
         for (
             component_cls_name,
             component_cls,
-        ) in self.container_manager.component_cls_container.items():
+        ) in self.container_manager.component_classes.items():
             if component_cls.get_scope() != ComponentScope.Singleton:
                 continue
 
@@ -364,7 +364,7 @@ class ComponentManager:
                     component_cls, component_cls_name
                 )
                 if instance is not None:
-                    self.container_manager.singleton_component_instance_container[
+                    self.container_manager.component_instances[
                         component_cls_name
                     ] = instance
 
@@ -389,18 +389,18 @@ class BeanManager:
             )
 
         bean_name = bean_cls.get_name()
-        self.container_manager.bean_collection_cls_container[bean_name] = bean_cls
+        self.container_manager.bean_collection_classes[bean_name] = bean_cls
 
     def get_bean(
         self, object_cls: Type[T], qualifier: Optional[str] = None
     ) -> Optional[T]:
         """Get a bean instance by class and optional qualifier."""
         bean_name = object_cls.__name__
-        if bean_name not in self.container_manager.singleton_bean_instance_container:
+        if bean_name not in self.container_manager.bean_instances:
             return None
 
         return cast(
-            T, self.container_manager.singleton_bean_instance_container.get(bean_name)
+            T, self.container_manager.bean_instances.get(bean_name)
         )
 
     def _inject_bean_collection_dependencies(
@@ -414,7 +414,7 @@ class BeanManager:
 
     def _validate_bean_view(self, view: BeanView, collection_name: str) -> None:
         """Validate a bean view before adding it to the container."""
-        if view.bean_name in self.container_manager.singleton_bean_instance_container:
+        if view.bean_name in self.container_manager.bean_instances:
             raise BeanConflictError(
                 f"[BEAN CONFLICTS] Bean: {view.bean_name} already exists under collection: {collection_name}"
             )
@@ -430,7 +430,7 @@ class BeanManager:
         for (
             bean_collection_cls_name,
             bean_collection_cls,
-        ) in self.container_manager.bean_collection_cls_container.items():
+        ) in self.container_manager.bean_collection_classes.items():
             logger.debug(
                 f"[INITIALIZING SINGLETON BEAN] Init singleton bean: {bean_collection_cls_name}"
             )
@@ -441,7 +441,7 @@ class BeanManager:
             bean_views = collection.scan_beans()
             for view in bean_views:
                 self._validate_bean_view(view, collection.get_name())
-                self.container_manager.singleton_bean_instance_container[
+                self.container_manager.bean_instances[
                     view.bean_name
                 ] = view.bean
 
@@ -464,19 +464,19 @@ class PropertiesManager:
             )
 
         properties_name = properties_cls.get_key()
-        self.container_manager.properties_cls_container[properties_name] = (
+        self.container_manager.properties_classes[properties_name] = (
             properties_cls
         )
 
     def get_properties(self, properties_cls: Type[PT]) -> Optional[PT]:
         """Get a properties instance by class."""
         properties_cls_name = properties_cls.get_key()
-        if properties_cls_name not in self.container_manager.properties_cls_container:
+        if properties_cls_name not in self.container_manager.properties_classes:
             return None
 
         return cast(
             PT,
-            self.container_manager.singleton_properties_instance_container.get(
+            self.container_manager.properties_instances.get(
                 properties_cls_name
             ),
         )
@@ -485,7 +485,7 @@ class PropertiesManager:
         """Create a properties loader instance."""
         return _PropertiesLoader(
             self.config.properties_path,
-            list(self.container_manager.properties_cls_container.values()),
+            list(self.container_manager.properties_classes.values()),
         )
 
     def load_properties(self) -> None:
@@ -496,10 +496,10 @@ class PropertiesManager:
         for (
             properties_key,
             properties_cls,
-        ) in self.container_manager.properties_cls_container.items():
+        ) in self.container_manager.properties_classes.items():
             if (
                 properties_key
-                in self.container_manager.singleton_properties_instance_container
+                in self.container_manager.properties_instances
             ):
                 continue
 
@@ -515,13 +515,13 @@ class PropertiesManager:
                     f"with key: {properties_cls.get_key()}"
                 )
 
-            self.container_manager.singleton_properties_instance_container[
+            self.container_manager.properties_instances[
                 properties_key
             ] = optional_properties
 
         # Update the global properties loader reference
         _PropertiesLoader.optional_loaded_properties = (
-            self.container_manager.singleton_properties_instance_container
+            self.container_manager.properties_instances
         )
 
 
@@ -565,11 +565,11 @@ class ApplicationContext:
         """Create a view model of the application context state."""
         return ApplicationContextView(
             config=self.config,
-            component_cls_container=list(
-                self.container_manager.component_cls_container.keys()
+            component_classes=list(
+                self.container_manager.component_classes.keys()
             ),
-            singleton_component_instance_container=list(
-                self.container_manager.singleton_component_instance_container.keys()
+            component_instances=list(
+                self.container_manager.component_instances.keys()
             ),
         )
 
@@ -618,25 +618,25 @@ class ApplicationContext:
             )
 
         controller_cls_name = controller_cls.get_name()
-        self.container_manager.controller_cls_container[controller_cls_name] = (
+        self.container_manager.controller_classes[controller_cls_name] = (
             controller_cls
         )
 
     def get_controller_instances(self) -> list[RestController]:
         """Get all controller instances."""
         return [
-            cls() for cls in self.container_manager.controller_cls_container.values()
+            cls() for cls in self.container_manager.controller_classes.values()
         ]
 
     def get_singleton_component_instances(self) -> list[Component]:
         """Get all singleton component instances."""
         return list(
-            self.container_manager.singleton_component_instance_container.values()
+            self.container_manager.component_instances.values()
         )
 
     def get_singleton_bean_instances(self) -> list[object]:
         """Get all singleton bean instances."""
-        return list(self.container_manager.singleton_bean_instance_container.values())
+        return list(self.container_manager.bean_instances.values())
 
     def is_within_context(self, entity_cls: Type[AppEntities]) -> bool:
         """Check if an entity class is registered in the application context."""
@@ -663,8 +663,8 @@ class ApplicationContext:
     def inject_dependencies_for_app_entities(self) -> None:
         """Inject dependencies for all registered app entities."""
         containers: list[Mapping[str, Type[AppEntities]]] = [
-            self.container_manager.component_cls_container,
-            self.container_manager.controller_cls_container,
+            self.container_manager.component_classes,
+            self.container_manager.controller_classes,
         ]
 
         for container in containers:

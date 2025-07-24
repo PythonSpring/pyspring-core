@@ -34,7 +34,7 @@ class Component:
     The `get_scope()` and `set_scope()` methods allow you to get and set the scope of the component.
 
     The lifecycle hooks are:
-    - `post_initialize()`: Called after the component is initialized.
+    - `post_construct()`: Called after the component is initialized.
     - `pre_destroy()`: Called before the component is destroyed.
 
     The `finish_initialization_cycle()` and `finish_destruction_cycle()` methods are final and call the corresponding lifecycle hooks in the correct order.
