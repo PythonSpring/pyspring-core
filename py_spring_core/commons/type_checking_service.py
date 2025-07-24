@@ -9,7 +9,7 @@ class MypyTypeCheckingError(str, Enum):
     NoUntypedDefs = "no-untyped-def"
 
 
-class TypeCheckingErrorr(Exception): ...
+class TypeCheckingError(Exception): ...
 
 
 class TypeCheckingService:
@@ -20,7 +20,7 @@ class TypeCheckingService:
             MypyTypeCheckingError.NoUntypedDefs
         ]
 
-    def type_checking(self) -> Optional[TypeCheckingErrorr]:
+    def type_checking(self) -> Optional[TypeCheckingError]:
         logger.info("[MYPY TYPE CHECKING] Mypy checking types for projects...")
         # Run mypy and capture stdout and stderr
         result = subprocess.run(
@@ -41,4 +41,4 @@ class TypeCheckingService:
                     message += error_message
         if len(message) == 0:
             return None
-        return TypeCheckingErrorr(message)
+        return TypeCheckingError(message)

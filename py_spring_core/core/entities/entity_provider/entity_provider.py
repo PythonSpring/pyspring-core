@@ -22,7 +22,7 @@ class EntityProvider:
     properties_classes: list[Type[Properties]] = field(default_factory=list)
     rest_controller_classes: list[Type[RestController]] = field(default_factory=list)
     depends_on: list[Type[AppEntities]] = field(default_factory=list)
-    extneral_dependencies: list[Any] = field(default_factory=list)
+    external_dependencies: list[Any] = field(default_factory=list)
     app_context: Optional["ApplicationContext"] = None
 
     def get_entities(self) -> list[Type[AppEntities]]:
