@@ -188,16 +188,17 @@ def _create_route_decorator(method: HTTPMethod):
         Returns:
             Callable: A decorator function that registers the route
         """
-        def decorator(func: Callable):
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             """Decorate a function to register it as a route.
-            
+
             Args:
-                func (Callable): The handler function to decorate
-                
+                func: The handler function to decorate
+
             Returns:
-                Callable: The wrapped function
+                The wrapped function
             """
-            class_name = func.__qualname__.split(".")[0]
+            qualname: str = getattr(func, "__qualname__", "")
+            class_name = qualname.split(".")[0]
             route_registration = RouteRegistration(
                 class_name=class_name,
                 method=method,
@@ -207,7 +208,7 @@ def _create_route_decorator(method: HTTPMethod):
                 status_code=status_code,
                 tags=tags,
                 dependencies=dependencies,
-                summary=summary or func.__name__,
+                summary=summary or getattr(func, "__name__", ""),
                 description=description or func.__doc__,
                 response_description=response_description,
                 responses=responses,

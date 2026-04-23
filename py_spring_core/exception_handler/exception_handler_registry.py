@@ -12,7 +12,8 @@ class ExceptionHandlerRegistry:
     @classmethod
     def register(cls, exception_cls: Type[E], handler: Callable[[E], Any]):
         key = exception_cls.__name__
-        logger.debug(f"Registering exception handler for {key}: {handler.__name__}")
+        handler_name = getattr(handler, "__name__", repr(handler))
+        logger.debug(f"Registering exception handler for {key}: {handler_name}")
         if key in cls._handlers:
             error_message = f"Exception handler for {exception_cls} already registered"
             logger.error(error_message)

@@ -35,6 +35,7 @@ from py_spring_core.core.entities.properties.properties import Properties
 from py_spring_core.core.entities.properties.properties_loader import _PropertiesLoader
 
 T = TypeVar("T", bound=AppEntities)
+BT = TypeVar("BT")
 PT = TypeVar("PT", bound=Properties)
 
 
@@ -127,16 +128,17 @@ class DependencyInjector:
         self,
         entity: Type[AppEntities],
         attr_name: str,
-        entity_cls: Type[AppEntities],
+        entity_cls: type,
         qualifier: Optional[str],
     ) -> bool:
         """Try to inject an entity dependency using available getters."""
         if self._app_context is None:
             return False
 
-        entity_getters: list[
-            Callable[[Type[AppEntities], Optional[str]], Optional[AppEntities]]
-        ] = [self._app_context.get_component, self._app_context.get_bean]
+        entity_getters: list[Callable[..., Optional[object]]] = [
+            self._app_context.get_component,
+            self._app_context.get_bean,
+        ]
 
         for getter in entity_getters:
             optional_entity = getter(entity_cls, qualifier)
@@ -196,7 +198,7 @@ class ComponentManager:
         self.container_manager = container_manager
 
     def _determine_target_cls_name(
-        self, component_cls: Type[T], qualifier: Optional[str]
+        self, component_cls: type, qualifier: Optional[str]
     ) -> str:
         """
         Determine the target class name for a given component class.
@@ -217,11 +219,11 @@ class ComponentManager:
 
         # If it's not an ABC, return its name directly
         if not issubclass(component_cls, ABC):
-            return component_cls.get_name()
+            return cast(Type[Component], component_cls).get_name()
 
         # If it's an ABC but has implementations, return its name directly
         if not component_cls.__abstractmethods__:
-            return component_cls.get_name()
+            return cast(Type[Component], component_cls).get_name()
 
         # For abstract classes that need implementations
         subclasses = [
@@ -434,8 +436,8 @@ class BeanManager:
         self.container_manager.bean_collection_classes[bean_name] = bean_cls
 
     def get_bean(
-        self, object_cls: Type[T], qualifier: Optional[str] = None
-    ) -> Optional[T]:
+        self, object_cls: Type[BT], qualifier: Optional[str] = None
+    ) -> Optional[BT]:
         """Get a bean instance by class and optional qualifier."""
         bean_name = qualifier if qualifier is not None else object_cls.__name__
         if bean_name not in self.container_manager.bean_instances:
@@ -445,7 +447,7 @@ class BeanManager:
         if not isinstance(bean, object_cls):
             return None
 
-        return cast(T, bean)
+        return bean
 
     def _inject_bean_collection_dependencies(
         self, bean_collection_cls: Type[BeanCollection]
@@ -632,8 +634,8 @@ class ApplicationContext:
 
     # Bean management methods
     def get_bean(
-        self, object_cls: Type[T], qualifier: Optional[str] = None
-    ) -> Optional[T]:
+        self, object_cls: Type[BT], qualifier: Optional[str] = None
+    ) -> Optional[BT]:
         """Get a bean instance by class and optional qualifier."""
         return self.bean_manager.get_bean(object_cls, qualifier)
 
