@@ -209,7 +209,8 @@ class ComponentManager:
             The target class name
 
         Raises:
-            ValueError: If abstract class has no subclasses
+            ValueError: If abstract class has no subclasses or multiple
+                        implementations exist without a qualifier
         """
         if qualifier is not None:
             return qualifier
@@ -223,13 +224,23 @@ class ComponentManager:
             return component_cls.get_name()
 
         # For abstract classes that need implementations
-        subclasses = component_cls.__subclasses__()
+        subclasses = [
+            sc for sc in component_cls.__subclasses__()
+            if issubclass(sc, Component)
+        ]
         if len(subclasses) == 0:
             raise ValueError(
                 f"[ABSTRACT CLASS ERROR] Abstract class {component_cls.__name__} has no subclasses"
             )
 
-        # Fall back to first subclass if no primary component exists
+        if len(subclasses) > 1:
+            names = [sc.get_name() for sc in subclasses]
+            raise ValueError(
+                f"[AMBIGUOUS DEPENDENCY] Abstract class {component_cls.__name__} "
+                f"has multiple implementations: {names}. "
+                f"Use Annotated[{component_cls.__name__}, '<qualifier>'] to specify which one."
+            )
+
         return subclasses[0].get_name()
 
     def register_component(self, component_cls: Type[Component]) -> None:
@@ -269,7 +280,16 @@ class ComponentManager:
         if target_cls_name not in self.container_manager.component_classes:
             return None
 
-        scope = component_cls.get_scope()
+        target_cls = self.container_manager.component_classes[target_cls_name]
+
+        if qualifier is not None and not issubclass(target_cls, component_cls):
+            raise TypeError(
+                f"[QUALIFIER TYPE ERROR] Resolved component '{target_cls_name}' "
+                f"({target_cls.__name__}) is not a subclass of the declared type "
+                f"{component_cls.__name__}"
+            )
+
+        scope = target_cls.get_scope()
         match scope:
             case ComponentScope.Singleton:
                 return cast(
@@ -279,7 +299,7 @@ class ComponentManager:
                     ),
                 )
             case ComponentScope.Prototype:
-                return cast(T, component_cls())
+                return cast(T, target_cls())
 
     def _init_singleton_component(
         self, component_cls: Type[Component], component_cls_name: str
@@ -314,6 +334,15 @@ class ComponentManager:
         """Initialize singleton instances for abstract component subclasses."""
         component_classes = self._get_abstract_class_component_subclasses(component_cls)
 
+        if not component_classes:
+            message = (
+                f"[ABSTRACT CLASS ERROR] Abstract class {component_cls.__name__} "
+                f"has no registered subclasses. Register at least one concrete "
+                f"implementation as a Component."
+            )
+            logger.error(message)
+            raise ValueError(message)
+
         for subclass_component_cls in component_classes:
             self.register_component(subclass_component_cls)
 
@@ -331,42 +360,55 @@ class ComponentManager:
                 logger.error(message)
                 raise ValueError(message)
 
+            if subclass_component_cls.get_scope() != ComponentScope.Singleton:
+                logger.debug(
+                    f"[ABSTRACT CLASS COMPONENT] Skipping non-singleton subclass: "
+                    f"{subclass_component_cls.get_name()} (scope: {subclass_component_cls.get_scope()})"
+                )
+                continue
+
+            subclass_name = subclass_component_cls.get_name()
+            if subclass_name in self.container_manager.component_instances:
+                continue
+
             logger.debug(
                 f"[ABSTRACT CLASS COMPONENT INITIALIZING SINGLETON COMPONENT] "
-                f"Init singleton component: {subclass_component_cls.get_name()}"
+                f"Init singleton component: {subclass_name}"
             )
 
             instance = self._init_singleton_component(
-                subclass_component_cls, subclass_component_cls.get_name()
+                subclass_component_cls, subclass_name
             )
             if instance is not None:
-                self.container_manager.component_instances[
-                    subclass_component_cls.get_name()
-                ] = instance
+                self.container_manager.component_instances[subclass_name] = instance
 
     def init_singleton_components(self) -> None:
         """Initialize all singleton components in the container."""
         for (
             component_cls_name,
             component_cls,
-        ) in self.container_manager.component_classes.items():
+        ) in list(self.container_manager.component_classes.items()):
             if component_cls.get_scope() != ComponentScope.Singleton:
+                continue
+
+            if issubclass(component_cls, ABC) and getattr(component_cls, "__abstractmethods__", frozenset()):
+                self._init_abstract_component_subclasses(component_cls)
+                continue
+
+            if component_cls_name in self.container_manager.component_instances:
                 continue
 
             logger.debug(
                 f"[INITIALIZING SINGLETON COMPONENT] Init singleton component: {component_cls_name}"
             )
 
-            if issubclass(component_cls, ABC):
-                self._init_abstract_component_subclasses(component_cls)
-            else:
-                instance = self._init_singleton_component(
-                    component_cls, component_cls_name
-                )
-                if instance is not None:
-                    self.container_manager.component_instances[
-                        component_cls_name
-                    ] = instance
+            instance = self._init_singleton_component(
+                component_cls, component_cls_name
+            )
+            if instance is not None:
+                self.container_manager.component_instances[
+                    component_cls_name
+                ] = instance
 
 
 class BeanManager:
@@ -395,13 +437,15 @@ class BeanManager:
         self, object_cls: Type[T], qualifier: Optional[str] = None
     ) -> Optional[T]:
         """Get a bean instance by class and optional qualifier."""
-        bean_name = object_cls.__name__
+        bean_name = qualifier if qualifier is not None else object_cls.__name__
         if bean_name not in self.container_manager.bean_instances:
             return None
 
-        return cast(
-            T, self.container_manager.bean_instances.get(bean_name)
-        )
+        bean = self.container_manager.bean_instances[bean_name]
+        if not isinstance(bean, object_cls):
+            return None
+
+        return cast(T, bean)
 
     def _inject_bean_collection_dependencies(
         self, bean_collection_cls: Type[BeanCollection]
@@ -440,6 +484,8 @@ class BeanManager:
 
             bean_views = collection.scan_beans()
             for view in bean_views:
+                if view.bean_name in self.container_manager.bean_instances:
+                    continue
                 self._validate_bean_view(view, collection.get_name())
                 self.container_manager.bean_instances[
                     view.bean_name

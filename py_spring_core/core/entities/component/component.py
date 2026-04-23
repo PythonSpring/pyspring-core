@@ -44,6 +44,20 @@ class Component:
         name: str = ""
         scope: ComponentScope = ComponentScope.Singleton
 
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        super().__init_subclass__(**kwargs)
+        if "Config" not in cls.__dict__:
+            cls.Config = type("Config", (), {
+                "name": "",
+                "scope": ComponentScope.Singleton,
+            })
+        else:
+            user_config = cls.__dict__["Config"]
+            if not hasattr(user_config, "scope"):
+                user_config.scope = ComponentScope.Singleton
+            if not hasattr(user_config, "name"):
+                user_config.name = ""
+
     @classmethod
     def get_name(cls) -> str:
         if hasattr(cls.Config, "name") and cls.Config.name:
@@ -56,7 +70,7 @@ class Component:
 
     @classmethod
     def get_scope(cls) -> ComponentScope:
-        return cls.Config.scope
+        return getattr(cls.Config, "scope", ComponentScope.Singleton)
 
     @classmethod
     def set_scope(cls, scope: ComponentScope) -> None:
