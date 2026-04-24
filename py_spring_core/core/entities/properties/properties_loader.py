@@ -54,7 +54,7 @@ class _PropertiesLoader:
     def _load_classes_as_map(self) -> dict[str, Type[Properties]]:
         return {_cls.get_key(): _cls for _cls in self.properties_classes}
 
-    @cachetools.cached(cache={})
+    @cachetools.cached(cache=cachetools.LRUCache(maxsize=128))
     def _load_properties_dict_from_file_content(
         self, file_extension: str, file_content: str
     ) -> dict[str, dict]:
