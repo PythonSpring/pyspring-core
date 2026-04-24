@@ -208,7 +208,7 @@ class TestApplicationContext:
         app_context.init_ioc_container()
         app_context.inject_dependencies_for_app_entities()
 
-        controller = app_context.get_controller_instances()[0]
+        controller: TestController = app_context.get_controller_instances()[0] # type: ignore
         app_context.inject_dependencies_for_instance(controller)
         assert hasattr(controller, "test_component")
         assert isinstance(controller.test_component, TestComponent)
