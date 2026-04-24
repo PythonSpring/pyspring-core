@@ -2,20 +2,22 @@ name: Publish to PyPI
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches:
+      - main
+    paths:
+      - 'py_spring_core/__version__.py'
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: ${{ !contains(github.event.head_commit.message, 'skip ci') && !contains(github.event.pull_request.title, 'skip ci') && (github.ref == 'refs/heads/main' || github.ref_type == 'tag') }}
+    if: ${{ !contains(github.event.head_commit.message, 'skip ci') }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: '3.8'
 
@@ -24,21 +26,42 @@ jobs:
           python -m pip install --upgrade pip
           pip install pdm twine
 
-      - name: Install dependencies
+      - name: Extract version
+        id: version
         run: |
-          pdm install
+          VERSION=$(python -c "import re; print(re.search(r'__version__\s*=\s*[\"'\''](.*?)[\"'\'']', open('py_spring_core/__version__.py').read()).group(1))")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if version exists on PyPI
+        id: check
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/py-spring-core/${{ steps.version.outputs.version }}/json")
+          if [ "$STATUS" = "200" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip if version already published
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          echo "Version ${{ steps.version.outputs.version }} already exists on PyPI, skipping."
+
+      - name: Install dependencies
+        if: steps.check.outputs.exists == 'false'
+        run: pdm install
 
       - name: Run tests
-        run: |
-          pdm run pytest
+        if: steps.check.outputs.exists == 'false'
+        run: pdm run pytest
 
       - name: Build the package
-        run: |
-          pdm build
+        if: steps.check.outputs.exists == 'false'
+        run: pdm build
 
       - name: Publish to PyPI
+        if: steps.check.outputs.exists == 'false'
         env:
           TWINE_USERNAME: "__token__"
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: |
-          twine upload --verbose dist/*
+        run: twine upload --verbose dist/*

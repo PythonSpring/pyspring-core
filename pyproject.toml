@@ -54,7 +54,7 @@ requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
 [tool.pdm]
-version = { source = "file", path = "py_spring_core/__init__.py" }
+version = { source = "file", path = "py_spring_core/__version__.py" }
 distribution = true
 
 [tool.pdm.build]
