@@ -1,5 +1,5 @@
 from threading import Thread
-from typing import Callable, ClassVar, Type
+from typing import Callable, ClassVar, Optional, Type
 
 from loguru import logger
 from pydantic import BaseModel
@@ -8,7 +8,7 @@ from py_spring_core.core.entities.component.component import Component
 from py_spring_core.core.interfaces.application_context_required import (
     ApplicationContextRequired,
 )
-from py_spring_core.event.commons import ApplicationEvent, EventQueue
+from py_spring_core.event.commons import ApplicationEvent, EventQueue, _ShutdownSentinel
 
 EventHandlerT = Callable[[Component, ApplicationEvent], None]
 
@@ -19,11 +19,12 @@ def EventListener(event_type: Type[ApplicationEvent]) -> Callable:
     It is responsible for binding an event handler to a component and a function.
     """
 
-    def decorator(func: EventHandlerT) -> None:
+    def decorator(func: EventHandlerT) -> EventHandlerT:
         if not issubclass(event_type, ApplicationEvent):
             raise ValueError(f"Event type must be a subclass of ApplicationEvent")
 
         ApplicationEventHandlerRegistry.register_event_handler(event_type, func)
+        return func
 
     return decorator
 
@@ -63,12 +64,14 @@ class ApplicationEventHandlerRegistry(Component, ApplicationContextRequired):
     def __init__(self) -> None:
         self._event_handlers: dict[str, list[EventHandler]] = {}
         self._event_message_queue = EventQueue.queue
+        self._message_thread: Optional[Thread] = None
 
     def post_construct(self) -> None:
         logger.info("Initializing event handlers...")
         self._init_event_handlers()
         logger.info("Starting event message handler thread...")
-        Thread(target=self._handle_messages, daemon=True).start()
+        self._message_thread = Thread(target=self._handle_messages, daemon=True)
+        self._message_thread.start()
 
     def _init_event_handlers(self) -> None:
         app_context = self.get_application_context()
@@ -111,6 +114,9 @@ class ApplicationEventHandlerRegistry(Component, ApplicationContextRequired):
         logger.info("Event message handler thread started...")
         while True:
             message = self._event_message_queue.get()
+            if isinstance(message, _ShutdownSentinel):
+                logger.info("Event message handler thread stopping...")
+                break
             for handler in self.get_event_handlers(message.__class__):
                 try:
                     optional_instance = self.component_instance_map.get(
@@ -124,3 +130,11 @@ class ApplicationEventHandlerRegistry(Component, ApplicationContextRequired):
                     handler.func(optional_instance, message)
                 except Exception as error:
                     logger.error(f"Error handling event: {error}")
+
+    def shutdown(self, timeout: float = 5.0) -> None:
+        """Stop the event message handler thread gracefully."""
+        if self._message_thread is not None and self._message_thread.is_alive():
+            self._event_message_queue.put(_ShutdownSentinel())
+            self._message_thread.join(timeout=timeout)
+            if self._message_thread.is_alive():
+                logger.warning("Event message handler thread did not stop within timeout")

@@ -748,9 +748,9 @@ class ApplicationContext:
         # Initialize singleton beans
         self.bean_manager.init_singleton_beans()
 
-    def inject_dependencies_for_external_object(self, object: Type[Any]) -> None:
+    def inject_dependencies_for_external_object(self, target_cls: Type[Any]) -> None:
         """Inject dependencies for an external object."""
-        self.dependency_injector.inject_dependencies(object)
+        self.dependency_injector.inject_dependencies(target_cls)
 
     def inject_dependencies_for_app_entities(self) -> None:
         """Inject dependencies for all registered app entities."""

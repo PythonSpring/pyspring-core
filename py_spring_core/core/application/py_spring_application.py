@@ -68,7 +68,7 @@ class PySpringApplication:
     PY_FILE_EXTENSION = ".py"
 
     def __init__(
-        self, app_config_path: str, entity_providers: Iterable[EntityProvider] = list()
+        self, app_config_path: str, entity_providers: Iterable[EntityProvider] = ()
     ) -> None:
         self.entity_providers = entity_providers
         logger.debug(

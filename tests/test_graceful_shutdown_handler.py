@@ -138,7 +138,7 @@ class TestGracefulShutdownHandler:
         handler._handle_sigint(signal.SIGINT, None)
         assert len(handler.shutdown_calls) == 1  # Still only one call
 
-    @patch('os._exit')
+    @patch('py_spring_core.core.interfaces.graceful_shutdown_handler.sys.exit')
     def test_timeout_functionality(self, mock_exit):
         """Test shutdown timeout functionality."""
         
@@ -167,7 +167,7 @@ class TestGracefulShutdownHandler:
         # Wait for timeout to trigger
         time.sleep(0.2)
         
-        # Should have called timeout and os._exit
+        # Should have called timeout and sys.exit
         assert len(handler.timeout_calls) == 1
         mock_exit.assert_called_once_with(0)
 
@@ -308,7 +308,7 @@ class TestGracefulShutdownHandler:
                 ShutdownType.ERROR, ShutdownType.UNKNOWN]
         assert len(set(types)) == len(types)
 
-    @patch('os._exit')
+    @patch('py_spring_core.core.interfaces.graceful_shutdown_handler.sys.exit')
     def test_timeout_force_exit(self, mock_exit):
         """Test that timeout eventually forces exit."""
         
@@ -336,5 +336,5 @@ class TestGracefulShutdownHandler:
         # Wait for timeout to trigger
         time.sleep(0.2)
         
-        # Should have called os._exit
+        # Should have called sys.exit
         mock_exit.assert_called_once_with(0) 

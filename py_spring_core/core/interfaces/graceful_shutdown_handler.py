@@ -2,8 +2,8 @@
 
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-import os
 import signal
+import sys
 import threading
 import time
 from types import FrameType
@@ -92,7 +92,7 @@ class GracefulShutdownHandler(SingleInheritanceRequired, ABC):
             self.on_error(error)
         finally:
             logger.critical(f"[Shutdown Timer] Timer exited with grace period of {self._timeout_seconds} seconds, exiting application")
-            os._exit(0)
+            sys.exit(0)
 
     def complete_shutdown(self) -> None:
         """Mark shutdown as complete and cancel timeout timer."""
