@@ -124,6 +124,50 @@ class DependencyInjector:
         setattr(entity, attr_name, optional_properties)
         return True
 
+    def _collect_instances_by_type(self, element_cls: type) -> list[object]:
+        """Collect all component and bean instances matching the given type."""
+        collected: list[object] = []
+        for instance in self.container_manager.component_instances.values():
+            if isinstance(instance, element_cls):
+                collected.append(instance)
+        for instance in self.container_manager.bean_instances.values():
+            if isinstance(instance, element_cls):
+                collected.append(instance)
+        return collected
+
+    def _try_inject_collection_dependency(
+        self,
+        entity: Type[AppEntities],
+        attr_name: str,
+        entity_cls: type,
+    ) -> bool:
+        """Try to inject a collection (List[T], Set[T], Dict[str, T]) dependency."""
+        origin = get_origin(entity_cls)
+        if origin not in (list, set, dict):
+            return False
+
+        args = get_args(entity_cls)
+
+        if origin in (list, set):
+            if not args or not isclass(args[0]):
+                return False
+            element_cls = args[0]
+            collected_instances = self._collect_instances_by_type(element_cls)
+            value: Any = collected_instances if origin is list else set(collected_instances)
+        else:
+            if len(args) < 2 or args[0] is not str or not isclass(args[1]):
+                return False
+            element_cls = args[1]
+            collected_instances = self._collect_instances_by_type(element_cls)
+            value = {type(inst).__name__: inst for inst in collected_instances}
+
+        setattr(entity, attr_name, value)
+        logger.success(
+            f"[COLLECTION INJECTION SUCCESS] Injected {len(collected_instances)} instances "
+            f"of {element_cls.__name__} as {origin.__name__} into {attr_name}"
+        )
+        return True
+
     def _try_inject_entity_dependency(
         self,
         entity: Type[AppEntities],
@@ -166,8 +210,8 @@ class DependencyInjector:
                 )
                 continue
 
-            # Skip non-class types
             if not isclass(entity_cls):
+                self._try_inject_collection_dependency(entity, attr_name, entity_cls)
                 continue
 
             # Handle Properties injection
