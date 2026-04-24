@@ -30,7 +30,12 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          VERSION=$(python -c "from py_spring_core.__version__ import __version__; print(__version__)")
+          VERSION=$(cat py_spring_core/__version__.py | sed -n 's/^__version__ = "\(.*\)"/\1/p')
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: Failed to extract version from __version__.py"
+            exit 1
+          fi
+          echo "Detected version: $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check if version exists on PyPI
