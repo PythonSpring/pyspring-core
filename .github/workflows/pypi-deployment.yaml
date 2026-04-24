@@ -29,7 +29,7 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          VERSION=$(python -c "import re; print(re.search(r'__version__\s*=\s*[\"'\''](.*?)[\"'\'']', open('py_spring_core/__version__.py').read()).group(1))")
+          VERSION=$(python -c "from py_spring_core.__version__ import __version__; print(__version__)")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check if version exists on PyPI
