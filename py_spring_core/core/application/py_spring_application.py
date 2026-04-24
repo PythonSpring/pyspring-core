@@ -227,8 +227,8 @@ class PySpringApplication:
             self.registry.exception_handlers[exc_name] = handler_func
 
     def _init_app(self) -> None:
-        self._drain_pending_registrations()
         classes_to_inject = self._prepare_injected_classes()
+        self._drain_pending_registrations()
         self._inject_application_context_to_context_required(classes_to_inject)
         self._register_app_entities(classes_to_inject)
         self.app_context.load_properties()
