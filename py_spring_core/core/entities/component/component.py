@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Type, final
+from typing import Any, Type, final
 
 
 class ComponentLifeCycle(Enum):
@@ -44,6 +44,21 @@ class Component:
         name: str = ""
         scope: ComponentScope = ComponentScope.Singleton
 
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        parent_config = cls.Config
+        if "Config" not in cls.__dict__:
+            class _IsolatedConfig:
+                name: str = ""
+                scope: ComponentScope = getattr(parent_config, "scope", ComponentScope.Singleton)
+            cls.Config: Any = _IsolatedConfig 
+        else:
+            user_config = cls.__dict__["Config"]
+            if not hasattr(user_config, "scope"):
+                user_config.scope = getattr(parent_config, "scope", ComponentScope.Singleton)
+            if not hasattr(user_config, "name"):
+                user_config.name = ""
+
     @classmethod
     def get_name(cls) -> str:
         if hasattr(cls.Config, "name") and cls.Config.name:
@@ -56,7 +71,7 @@ class Component:
 
     @classmethod
     def get_scope(cls) -> ComponentScope:
-        return cls.Config.scope
+        return getattr(cls.Config, "scope", ComponentScope.Singleton)
 
     @classmethod
     def set_scope(cls, scope: ComponentScope) -> None:

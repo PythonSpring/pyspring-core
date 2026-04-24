@@ -84,7 +84,8 @@ class ApplicationEventHandlerRegistry(Component, ApplicationContextRequired):
         cls, event_type: Type[ApplicationEvent], handler: EventHandlerT
     ):
         event_name = event_type.__name__
-        func_name_parts = handler.__qualname__.split(".")
+        handler_name = getattr(handler, "__qualname__", "")
+        func_name_parts = handler_name.split(".")
         if len(func_name_parts) != 2:
             raise ValueError(f"Handler must be a member function of a class")
         class_name, func_name = func_name_parts

@@ -25,7 +25,7 @@ class TestPropertiesLoader:
             mocker.mock_open(read_data='{"mock_properties": {"attr": "value"}}'),
         )
         mocker.patch("json.loads", return_value={"mock_properties": {"attr": "value"}})
-        loader = _PropertiesLoader("test.json", mock_properties_classes)  # type: ignore
+        loader = _PropertiesLoader("test.json", mock_properties_classes)
         properties = loader.load_properties()
 
         assert "mock_properties" in properties
@@ -39,7 +39,7 @@ class TestPropertiesLoader:
             mocker.mock_open(read_data="mock_properties:\n  attr: value"),
         )
         mocker.patch("yaml.load", return_value={"mock_properties": {"attr": "value"}})
-        loader = _PropertiesLoader("test.yaml", mock_properties_classes)  # type: ignore
+        loader = _PropertiesLoader("test.yaml", mock_properties_classes)
         properties = loader.load_properties()
 
         assert "mock_properties" in properties

@@ -23,7 +23,7 @@ class TestGracefulShutdownHandler:
         """Test that GracefulShutdownHandler enforces abstract methods."""
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
             # Should not be able to instantiate abstract class directly
-            GracefulShutdownHandler(timeout_seconds=30.0, timeout_enabled=True)  # type: ignore
+            GracefulShutdownHandler(timeout_seconds=30.0, timeout_enabled=True) # pyright: ignore[reportAbstractUsage]
 
     def test_concrete_implementation_creation(self):
         """Test that a concrete implementation can be created successfully."""

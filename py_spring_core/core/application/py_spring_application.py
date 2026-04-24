@@ -308,7 +308,7 @@ class PySpringApplication:
         self.shutdown_handler = handler_cls(
             timeout_seconds=shutdown_config.timeout_seconds,
             timeout_enabled=shutdown_config.enabled
-        ) # type: ignore
+        )
         logger.debug(f"[{handler_type} INIT] Graceful shutdown initialized")
 
     def _configure_uvicorn_logging(self):

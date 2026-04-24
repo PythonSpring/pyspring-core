@@ -67,14 +67,14 @@ class BeanCollection:
                 continue
 
             creation_func = getattr(cls, func_name)
-            bean_name = creation_func.__annotations__[cls.RETURN_KEY].__name__
+            bean_name: str = creation_func.__annotations__[cls.RETURN_KEY].__name__
             view = BeanView(
                 bean_name=bean_name,
                 bean_creation_func=creation_func,
                 bean=creation_func(),
             )
             logger.success(
-                f"[BEAN CREATION UNDER {cls.__name__}] Found bean creation func: {view.bean_creation_func.__name__} with bean name: {view.bean_name}"
+                f"[BEAN CREATION UNDER {cls.__name__}] Found bean creation func: {func_name} with bean name: {view.bean_name}"
             )
             bean_views.append(view)
 

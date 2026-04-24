@@ -48,7 +48,7 @@ class TestMiddleware:
         """
         # Test that Middleware is abstract by checking it has abstract methods
         assert hasattr(Middleware, "process_request")
-        assert Middleware.process_request.__isabstractmethod__
+        assert getattr(Middleware.process_request, "__isabstractmethod__", False)
 
     def test_process_request_is_abstract(self):
         """
@@ -66,7 +66,7 @@ class TestMiddleware:
         # Test that the class is abstract by checking it has abstract methods
         assert hasattr(ConcreteMiddleware, "process_request")
         # The method should still be abstract since it wasn't implemented
-        assert ConcreteMiddleware.process_request.__isabstractmethod__
+        assert getattr(ConcreteMiddleware.process_request, "__isabstractmethod__", False)
 
     @pytest.mark.asyncio
     async def test_dispatch_continues_when_process_request_returns_none(

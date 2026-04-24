@@ -76,5 +76,5 @@ dev = [
     "pytest-asyncio>=1.1.0",
     "types-PyYAML>=6.0.12.20240917",
     "types-cachetools>=5.5.0.20240820",
-    "mypy>=1.11.2"
+    "ty>=0.0.32"
 ]

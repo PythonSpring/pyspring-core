@@ -7,6 +7,7 @@ from py_spring_core.core.application.application_config import (
     ServerConfig,
     LoguruConfig,
 )
+from py_spring_core.core.application.loguru_config import LogLevel
 
 
 class TestShutdownConfig:
@@ -116,30 +117,26 @@ class TestApplicationConfigWithShutdown:
 
     def test_application_config_from_dict_with_shutdown(self):
         """Test ApplicationConfig reconstruction from dict with shutdown config."""
-        config_dict = {
-            "app_src_target_dir": "./src",
-            "server_config": {"host": "localhost", "port": 8000},
-            "properties_file_path": "./app.properties",
-            "loguru_config": {"log_file_path": "./logs/app.log", "log_level": "INFO"},
-            "shutdown_config": {"timeout_seconds": 25.0, "enabled": False}
-        }
-        
-        config = ApplicationConfig(**config_dict)
-        
+        config = ApplicationConfig(
+            app_src_target_dir="./src",
+            server_config=ServerConfig(host="localhost", port=8000),
+            properties_file_path="./app.properties",
+            loguru_config=LoguruConfig(log_file_path="./logs/app.log", log_level=LogLevel.INFO),
+            shutdown_config=ShutdownConfig(timeout_seconds=25.0, enabled=False),
+        )
+
         assert config.app_src_target_dir == "./src"
         assert config.shutdown_config.timeout_seconds == 25.0
         assert config.shutdown_config.enabled is False
 
     def test_application_config_without_shutdown_config_in_dict(self):
         """Test that ApplicationConfig uses default shutdown when not provided."""
-        config_dict = {
-            "app_src_target_dir": "./src",
-            "server_config": {"host": "localhost", "port": 8000},
-            "properties_file_path": "./app.properties",
-            "loguru_config": {"log_file_path": "./logs/app.log", "log_level": "INFO"}
-        }
-        
-        config = ApplicationConfig(**config_dict)
+        config = ApplicationConfig(
+            app_src_target_dir="./src",
+            server_config=ServerConfig(host="localhost", port=8000),
+            properties_file_path="./app.properties",
+            loguru_config=LoguruConfig(log_file_path="./logs/app.log", log_level=LogLevel.INFO),
+        )
         
         # Should use default shutdown config
         assert config.shutdown_config.timeout_seconds == 30.0
