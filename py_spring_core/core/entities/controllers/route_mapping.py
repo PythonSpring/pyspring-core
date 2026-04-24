@@ -100,32 +100,25 @@ class RouteRegistration(BaseModel):
         return hash((self.method, self.path))
 
 
-class RouteMapping:
-    """Registry for storing and managing route registrations by controller class.
-    
-    This class maintains a mapping of controller class names to their
-    associated route registrations, enabling efficient route lookup
-    and management within the PySpring framework.
-    
-    Attributes:
-        routes (dict[str, set[RouteRegistration]]): Mapping of class names to route sets
-    """
-    routes: dict[str, set[RouteRegistration]] = {}
+# Module-level staging area for import-time route registrations.
+# Drained into ApplicationRegistry at app boot, then cleared.
+_pending_routes: list[RouteRegistration] = []
 
-    @classmethod
-    def register_route(cls, route_registration: RouteRegistration) -> None:
-        """Register a route for a specific controller class.
-        
-        Adds the given route registration to the routes mapping,
-        creating a new set for the class if it doesn't exist.
-        
-        Args:
-            route_registration (RouteRegistration): The route to register
-        """
-        optional_routes = cls.routes.get(route_registration.class_name, None)
-        if optional_routes is None:
-            cls.routes[route_registration.class_name] = set()
-        cls.routes[route_registration.class_name].add(route_registration)
+
+def drain_pending_routes() -> list[RouteRegistration]:
+    """Return all pending route registrations and clear the staging area."""
+    routes = list(_pending_routes)
+    _pending_routes.clear()
+    return routes
+
+
+class RouteMapping:
+    """Namespace for route registration utilities.
+
+    Route registrations collected at import time via decorators are stored
+    in a module-level pending list and drained into the ApplicationRegistry
+    when the application boots.
+    """
 
 
 def _create_route_decorator(method: HTTPMethod):
@@ -223,7 +216,7 @@ def _create_route_decorator(method: HTTPMethod):
                 include_in_schema=include_in_schema,
                 name=name,
             )
-            RouteMapping.register_route(route_registration)
+            _pending_routes.append(route_registration)
 
             @wraps(func)
             def wrapper(*args: Any, **kwargs: Any):

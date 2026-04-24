@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Iterable
+from typing import Iterable, Optional
 
 from fastapi import APIRouter, FastAPI
 
@@ -20,8 +20,9 @@ class RestController:
     Subclasses of `RestController` should override the `register_routes` methods to add their own routes and middleware to the controller.
     """
 
-    app: FastAPI
-    router: APIRouter
+    def __init__(self) -> None:
+        self.app: Optional[FastAPI] = None
+        self.router: Optional[APIRouter] = None
 
     class Config:
         prefix: str = ""

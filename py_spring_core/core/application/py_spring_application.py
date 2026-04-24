@@ -15,6 +15,7 @@ from py_spring_core.commons.type_checking_service import TypeCheckingService
 from py_spring_core.core.application.application_config import (
     ApplicationConfigRepository,
 )
+from py_spring_core.core.application.application_registry import ApplicationRegistry
 from py_spring_core.core.application.commons import AppEntities
 from py_spring_core.core.application.context.application_context import (
     ApplicationContext,
@@ -26,7 +27,6 @@ from py_spring_core.core.application.loguru_config import LogFormat
 from py_spring_core.core.entities.bean_collection.bean_collection import BeanCollection
 from py_spring_core.core.entities.component.component import Component, ComponentLifeCycle
 from py_spring_core.core.entities.controllers.rest_controller import RestController
-from py_spring_core.core.entities.controllers.route_mapping import RouteMapping
 from py_spring_core.core.entities.entity_provider.entity_provider import EntityProvider
 from py_spring_core.core.entities.middlewares.middleware import Middleware
 from py_spring_core.core.entities.middlewares.middleware_registry import (
@@ -94,8 +94,11 @@ class PySpringApplication:
             properties_path=self.app_config.properties_file_path
         )
         self.fastapi = FastAPI()
+        self.registry = ApplicationRegistry()
         self.app_context = ApplicationContext(
-            config=self.app_context_config, server=self.fastapi
+            config=self.app_context_config,
+            server=self.fastapi,
+            registry=self.registry,
         )
 
         self.classes_with_handlers: dict[
@@ -160,12 +163,6 @@ class PySpringApplication:
             f"[REST CONTROLLER INIT] Register router for controller: {_cls.__name__}"
         )
         self.app_context.register_controller(_cls)
-        _cls.app = self.fastapi
-        router_prefix = _cls.get_router_prefix()
-        logger.debug(
-            f"[REST CONTROLLER INIT] Register router with prefix: {router_prefix}"
-        )
-        _cls.router = APIRouter(prefix=router_prefix)
 
     def _handle_register_bean_collection(self, _cls: Type[BeanCollection]) -> None:
         logger.debug(
@@ -205,7 +202,32 @@ class PySpringApplication:
         ]
         return classes_to_inject
 
+    def _drain_pending_registrations(self) -> None:
+        """Move import-time decorator registrations into this app's registry."""
+        from py_spring_core.core.entities.controllers.route_mapping import (
+            drain_pending_routes,
+        )
+        from py_spring_core.event.application_event_handler_registry import (
+            drain_pending_event_handlers,
+        )
+        from py_spring_core.exception_handler.exception_handler_registry import (
+            drain_pending_exception_handlers,
+        )
+
+        for route in drain_pending_routes():
+            self.registry.routes.setdefault(route.class_name, set()).add(route)
+
+        for handler in drain_pending_event_handlers():
+            event_name = handler.event_type.__name__
+            self.registry.event_handlers.setdefault(event_name, [])
+            if handler not in self.registry.event_handlers[event_name]:
+                self.registry.event_handlers[event_name].append(handler)
+
+        for exc_name, handler_func in drain_pending_exception_handlers():
+            self.registry.exception_handlers[exc_name] = handler_func
+
     def _init_app(self) -> None:
+        self._drain_pending_registrations()
         classes_to_inject = self._prepare_injected_classes()
         self._inject_application_context_to_context_required(classes_to_inject)
         self._register_app_entities(classes_to_inject)
@@ -233,7 +255,11 @@ class PySpringApplication:
         controllers = self.app_context.get_controller_instances()
         for controller in controllers:
             name = controller.__class__.__name__
-            routes = RouteMapping.routes.get(name, set())
+            router_prefix = controller.get_router_prefix()
+            controller.app = self.fastapi
+            controller.router = APIRouter(prefix=router_prefix)
+            self.app_context.inject_dependencies_for_instance(controller)
+            routes = self.registry.routes.get(name, set())
             controller.post_construct()
             controller._register_decorated_routes(routes)
             router = controller.get_router()

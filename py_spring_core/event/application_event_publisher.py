@@ -1,16 +1,11 @@
-from typing import TypeVar
-
 from py_spring_core.core.entities.component.component import Component
-from py_spring_core.event.application_event_handler_registry import (
-    ApplicationEvent,
-    ApplicationEventHandlerRegistry,
+from py_spring_core.core.interfaces.application_context_required import (
+    ApplicationContextRequired,
 )
-from py_spring_core.event.commons import EventQueue
-
-T = TypeVar("T", bound=ApplicationEvent)
+from py_spring_core.event.commons import ApplicationEvent
 
 
-class ApplicationEventPublisher(Component):
+class ApplicationEventPublisher(Component, ApplicationContextRequired):
     """
     The ApplicationEventPublisher is a component that publishes application events.
     It is responsible for publishing application events to the event message queue.
@@ -19,8 +14,6 @@ class ApplicationEventPublisher(Component):
     - Publishes application events to the event message queue
     """
 
-    def __init__(self):
-        self.event_message_queue = EventQueue.queue
-
     def publish(self, event: ApplicationEvent) -> None:
-        self.event_message_queue.put(event)
+        app_context = self.get_application_context()
+        app_context.registry.event_queue.put(event)

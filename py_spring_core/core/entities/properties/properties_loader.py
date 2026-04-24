@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, Optional, Type
+from typing import Any, Callable, Type
 
 import cachetools
 import yaml
@@ -16,10 +16,7 @@ class _PropertiesLoader:
     The `_PropertiesLoader` class is responsible for loading properties from a file, validating them against a set of known `Properties` classes, and providing access to the loaded properties.
     The class supports loading properties from JSON or YAML files, and raises appropriate errors if the file extension is unsupported or the properties keys are invalid.
     The `load_properties` method returns a dictionary of `Properties` instances, where the keys match the keys in the properties file.
-    The `get_properties` method provides a way to retrieve a specific `Properties` instance by its key, if it has been previously loaded.
     """
-
-    optional_loaded_properties: dict[str, Properties] = {}
 
     def __init__(
         self, properties_path: str, properties_classes: list[Type[Properties]]
@@ -84,8 +81,3 @@ class _PropertiesLoader:
             properties[key] = properties_cls.model_validate(value)
         return properties
 
-    @classmethod
-    def get_properties(cls, _key: str) -> Optional[Properties]:
-        if cls.optional_loaded_properties is None:
-            raise ValueError("[PROPERTIES NOT LOADED] Properties not loaded yet")
-        return cls.optional_loaded_properties.get(_key)

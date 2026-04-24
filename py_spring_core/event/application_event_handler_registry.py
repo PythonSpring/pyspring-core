@@ -1,5 +1,5 @@
 from threading import Thread
-from typing import Callable, ClassVar, Optional, Type
+from typing import Callable, Optional, Type
 
 from loguru import logger
 from pydantic import BaseModel
@@ -8,9 +8,40 @@ from py_spring_core.core.entities.component.component import Component
 from py_spring_core.core.interfaces.application_context_required import (
     ApplicationContextRequired,
 )
-from py_spring_core.event.commons import ApplicationEvent, EventQueue, _ShutdownSentinel
+from py_spring_core.event.commons import ApplicationEvent, _ShutdownSentinel
 
 EventHandlerT = Callable[[Component, ApplicationEvent], None]
+
+
+# Module-level staging area for import-time event handler registrations.
+# Drained into ApplicationRegistry at app boot, then cleared.
+_pending_event_handlers: list["EventHandler"] = []
+
+
+def _register_event_handler(
+    event_type: Type[ApplicationEvent], handler: EventHandlerT
+) -> None:
+    """Build an EventHandler from the decorated function and stage it."""
+    handler_name = getattr(handler, "__qualname__", "")
+    func_name_parts = handler_name.split(".")
+    if len(func_name_parts) != 2:
+        raise ValueError("Handler must be a member function of a class")
+    class_name, func_name = func_name_parts
+    event_handler = EventHandler(
+        class_name=class_name,
+        func_name=func_name,
+        event_type=event_type,
+        func=handler,
+    )
+    if event_handler not in _pending_event_handlers:
+        _pending_event_handlers.append(event_handler)
+
+
+def drain_pending_event_handlers() -> list["EventHandler"]:
+    """Return all pending event handler registrations and clear the staging area."""
+    handlers = list(_pending_event_handlers)
+    _pending_event_handlers.clear()
+    return handlers
 
 
 def EventListener(event_type: Type[ApplicationEvent]) -> Callable:
@@ -21,9 +52,9 @@ def EventListener(event_type: Type[ApplicationEvent]) -> Callable:
 
     def decorator(func: EventHandlerT) -> EventHandlerT:
         if not issubclass(event_type, ApplicationEvent):
-            raise ValueError(f"Event type must be a subclass of ApplicationEvent")
+            raise ValueError("Event type must be a subclass of ApplicationEvent")
 
-        ApplicationEventHandlerRegistry.register_event_handler(event_type, func)
+        _register_event_handler(event_type, func)
         return func
 
     return decorator
@@ -59,11 +90,8 @@ class ApplicationEventHandlerRegistry(Component, ApplicationContextRequired):
     - Binds event handlers to their corresponding components
     """
 
-    _class_event_handlers: ClassVar[dict[str, list[EventHandler]]] = {}
-
     def __init__(self) -> None:
         self._event_handlers: dict[str, list[EventHandler]] = {}
-        self._event_message_queue = EventQueue.queue
         self._message_thread: Optional[Thread] = None
 
     def post_construct(self) -> None:
@@ -80,28 +108,7 @@ class ApplicationEventHandlerRegistry(Component, ApplicationContextRequired):
             component.__class__.__name__: component
             for component in app_context.get_singleton_component_instances()
         }
-        self._event_handlers = self._class_event_handlers
-
-    @classmethod
-    def register_event_handler(
-        cls, event_type: Type[ApplicationEvent], handler: EventHandlerT
-    ):
-        event_name = event_type.__name__
-        handler_name = getattr(handler, "__qualname__", "")
-        func_name_parts = handler_name.split(".")
-        if len(func_name_parts) != 2:
-            raise ValueError(f"Handler must be a member function of a class")
-        class_name, func_name = func_name_parts
-        if event_name not in cls._class_event_handlers:
-            cls._class_event_handlers[event_name] = []
-        event_handler = EventHandler(
-            class_name=class_name,
-            func_name=func_name,
-            event_type=event_type,
-            func=handler,
-        )
-        if event_handler not in cls._class_event_handlers[event_name]:
-            cls._class_event_handlers[event_name].append(event_handler)
+        self._event_handlers = app_context.registry.event_handlers
 
     def get_event_handlers(
         self, event_type: Type[ApplicationEvent]
@@ -111,9 +118,11 @@ class ApplicationEventHandlerRegistry(Component, ApplicationContextRequired):
         return handlers
 
     def _handle_messages(self) -> None:
+        app_context = self.get_application_context()
+        event_queue = app_context.registry.event_queue
         logger.info("Event message handler thread started...")
         while True:
-            message = self._event_message_queue.get()
+            message = event_queue.get()
             if isinstance(message, _ShutdownSentinel):
                 logger.info("Event message handler thread stopping...")
                 break
@@ -134,7 +143,8 @@ class ApplicationEventHandlerRegistry(Component, ApplicationContextRequired):
     def shutdown(self, timeout: float = 5.0) -> None:
         """Stop the event message handler thread gracefully."""
         if self._message_thread is not None and self._message_thread.is_alive():
-            self._event_message_queue.put(_ShutdownSentinel())
+            app_context = self.get_application_context()
+            app_context.registry.event_queue.put(_ShutdownSentinel())
             self._message_thread.join(timeout=timeout)
             if self._message_thread.is_alive():
                 logger.warning("Event message handler thread did not stop within timeout")
