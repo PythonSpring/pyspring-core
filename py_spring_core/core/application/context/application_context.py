@@ -685,6 +685,19 @@ class ApplicationContext:
         """Get a component instance by class and optional qualifier."""
         return self.component_manager.get_component(component_cls, qualifier)
 
+    def must_get_component(
+        self, component_cls: Type[T], qualifier: Optional[str] = None
+    ) -> T:
+        """Get a component instance, raising if not found."""
+        result = self.get_component(component_cls, qualifier)
+        if result is None:
+            name = component_cls.__name__
+            msg = f"Component {name} not found"
+            if qualifier:
+                msg += f" with qualifier '{qualifier}'"
+            raise LookupError(msg)
+        return result
+
     def register_component(self, component_cls: Type[Component]) -> None:
         """Register a component class in the application context."""
         self.component_manager.register_component(component_cls)
@@ -696,6 +709,19 @@ class ApplicationContext:
         """Get a bean instance by class and optional qualifier."""
         return self.bean_manager.get_bean(object_cls, qualifier)
 
+    def must_get_bean(
+        self, object_cls: Type[BT], qualifier: Optional[str] = None
+    ) -> BT:
+        """Get a bean instance, raising if not found."""
+        result = self.get_bean(object_cls, qualifier)
+        if result is None:
+            name = object_cls.__name__
+            msg = f"Bean {name} not found"
+            if qualifier:
+                msg += f" with qualifier '{qualifier}'"
+            raise LookupError(msg)
+        return result
+
     def register_bean_collection(self, bean_cls: Type[BeanCollection]) -> None:
         """Register a bean collection class in the application context."""
         self.bean_manager.register_bean_collection(bean_cls)
@@ -704,6 +730,14 @@ class ApplicationContext:
     def get_properties(self, properties_cls: Type[PT]) -> Optional[PT]:
         """Get a properties instance by class."""
         return self.properties_manager.get_properties(properties_cls)
+
+    def must_get_properties(self, properties_cls: Type[PT]) -> PT:
+        """Get a properties instance, raising if not found."""
+        result = self.get_properties(properties_cls)
+        if result is None:
+            name = properties_cls.__name__
+            raise LookupError(f"Properties {name} not found")
+        return result
 
     def register_properties(self, properties_cls: Type[Properties]) -> None:
         """Register a properties class in the application context."""

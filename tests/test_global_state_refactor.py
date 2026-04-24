@@ -24,6 +24,7 @@ from py_spring_core.core.entities.component.component import Component, Componen
 from py_spring_core.core.entities.controllers.rest_controller import RestController
 from py_spring_core.core.entities.controllers.route_mapping import (
     GetMapping,
+    HTTPMethod,
     PostMapping,
     RouteRegistration,
     _pending_routes,
@@ -246,7 +247,7 @@ class TestApplicationRegistry:
         reg.routes["TestCtrl"] = {
             RouteRegistration(
                 class_name="TestCtrl",
-                method="GET",
+                method=HTTPMethod.GET,
                 path="/test",
                 func=lambda: None,
             )
@@ -254,7 +255,7 @@ class TestApplicationRegistry:
         reg.event_handlers["MyEvent"] = [{"some": "handler"}]
         reg.exception_handlers["ValueError"] = lambda e: None
         reg.loaded_properties["db"] = {"host": "localhost"}
-        reg.event_queue.put("msg")
+        reg.event_queue.put(ApplicationEvent())
 
         reg.clear()
 
@@ -381,6 +382,8 @@ class TestInstanceLevelDI:
 
         a = app_context.get_component(ConsumerA)
         b = app_context.get_component(ConsumerB)
+        assert a is not None
+        assert b is not None
 
         assert a is not b
         assert a.dep is b.dep  # same singleton
@@ -443,7 +446,7 @@ class TestEventQueueThroughRegistry:
         reg_a = ApplicationRegistry()
         reg_b = ApplicationRegistry()
 
-        reg_a.event_queue.put("event_for_a")
+        reg_a.event_queue.put(ApplicationEvent())
 
         assert not reg_b.event_queue.qsize()
         assert reg_a.event_queue.qsize() == 1

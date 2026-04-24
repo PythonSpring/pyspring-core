@@ -262,7 +262,7 @@ class PySpringApplication:
             routes = self.registry.routes.get(name, set())
             controller.post_construct()
             controller._register_decorated_routes(routes)
-            router = controller.get_router()
+            router = controller.must_get_router()
             self.fastapi.include_router(router)
             logger.debug(f"[CONTROLLER INIT] Controller {name} initialized")
 

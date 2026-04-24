@@ -30,6 +30,8 @@ class RestController:
     def post_construct(self) -> None: ...
 
     def _register_decorated_routes(self, routes: Iterable[RouteRegistration]) -> None:
+        if self.router is None:
+            raise RuntimeError("Router not initialized; cannot register routes")
         for route in routes:
             bound_method = partial(route.func, self)
             self.router.add_api_route(
@@ -56,7 +58,15 @@ class RestController:
                 name=route.name,
             )
 
-    def get_router(self) -> APIRouter:
+    def get_router(self) -> Optional[APIRouter]:
+        return self.router
+
+    def must_get_router(self) -> APIRouter:
+        """Get the router, raising if not initialized."""
+        if self.router is None:
+            raise LookupError(
+                f"Router not initialized for controller {self.get_name()}"
+            )
         return self.router
 
     @classmethod
