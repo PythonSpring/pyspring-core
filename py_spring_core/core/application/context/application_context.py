@@ -4,7 +4,6 @@ from typing import (
     Annotated,
     Any,
     Callable,
-    Mapping,
     Optional,
     Type,
     TypeVar,
@@ -18,6 +17,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 import py_spring_core.core.utils as framework_utils
+from py_spring_core.core.application.application_registry import ApplicationRegistry
 from py_spring_core.core.application.commons import AppEntities
 from py_spring_core.core.application.context.application_context_config import (
     ApplicationContextConfig,
@@ -106,11 +106,11 @@ class DependencyInjector:
 
     def _inject_properties_dependency(
         self,
-        entity: Type[AppEntities],
+        target: object,
         attr_name: str,
         properties_cls: Type[Properties],
     ) -> bool:
-        """Inject a properties dependency into an entity."""
+        """Inject a properties dependency into a target instance."""
         if self._app_context is None:
             return False
 
@@ -121,7 +121,7 @@ class DependencyInjector:
                 f"is not found in properties file for class: {properties_cls.get_name()} "
                 f"with key: {properties_cls.get_key()}"
             )
-        setattr(entity, attr_name, optional_properties)
+        setattr(target, attr_name, optional_properties)
         return True
 
     def _collect_instances_by_type(self, element_cls: type) -> list[object]:
@@ -137,7 +137,7 @@ class DependencyInjector:
 
     def _try_inject_collection_dependency(
         self,
-        entity: Type[AppEntities],
+        target: object,
         attr_name: str,
         entity_cls: type,
     ) -> bool:
@@ -161,7 +161,7 @@ class DependencyInjector:
             collected_instances = self._collect_instances_by_type(element_cls)
             value = {type(inst).__name__: inst for inst in collected_instances}
 
-        setattr(entity, attr_name, value)
+        setattr(target, attr_name, value)
         logger.success(
             f"[COLLECTION INJECTION SUCCESS] Injected {len(collected_instances)} instances "
             f"of {element_cls.__name__} as {origin.__name__} into {attr_name}"
@@ -170,7 +170,7 @@ class DependencyInjector:
 
     def _try_inject_entity_dependency(
         self,
-        entity: Type[AppEntities],
+        target: object,
         attr_name: str,
         entity_cls: type,
         qualifier: Optional[str],
@@ -187,7 +187,7 @@ class DependencyInjector:
         for getter in entity_getters:
             optional_entity = getter(entity_cls, qualifier)
             if optional_entity is not None:
-                setattr(entity, attr_name, optional_entity)
+                setattr(target, attr_name, optional_entity)
                 logger.success(
                     f"[DEPENDENCY INJECTION SUCCESS] Inject dependency for {entity_cls.__name__} "
                     f"in attribute: {attr_name}"
@@ -195,9 +195,10 @@ class DependencyInjector:
                 return True
         return False
 
-    def inject_dependencies(self, entity: Type[AppEntities]) -> None:
-        """Inject dependencies for a given entity based on its annotations."""
-        for attr_name, annotated_type in entity.__annotations__.items():
+    def inject_dependencies(self, target: object) -> None:
+        """Inject dependencies into a target instance based on its class annotations."""
+        target_cls = type(target) if not isinstance(target, type) else target
+        for attr_name, annotated_type in target_cls.__annotations__.items():
             entity_cls, qualifier = self._extract_qualifier_from_annotation(
                 annotated_type
             )
@@ -211,17 +212,17 @@ class DependencyInjector:
                 continue
 
             if not isclass(entity_cls):
-                self._try_inject_collection_dependency(entity, attr_name, entity_cls)
+                self._try_inject_collection_dependency(target, attr_name, entity_cls)
                 continue
 
             # Handle Properties injection
             if issubclass(entity_cls, Properties):
-                if self._inject_properties_dependency(entity, attr_name, entity_cls):
+                if self._inject_properties_dependency(target, attr_name, entity_cls):
                     continue
 
             # Try to inject entity dependency
             if self._try_inject_entity_dependency(
-                entity, attr_name, entity_cls, qualifier
+                target, attr_name, entity_cls, qualifier
             ):
                 continue
 
@@ -238,8 +239,13 @@ class DependencyInjector:
 class ComponentManager:
     """Manages component registration and instantiation."""
 
-    def __init__(self, container_manager: ContainerManager):
+    def __init__(
+        self,
+        container_manager: ContainerManager,
+        dependency_injector: Optional["DependencyInjector"] = None,
+    ):
         self.container_manager = container_manager
+        self.dependency_injector = dependency_injector
 
     def _determine_target_cls_name(
         self, component_cls: type, qualifier: Optional[str]
@@ -345,7 +351,10 @@ class ComponentManager:
                     ),
                 )
             case ComponentScope.Prototype:
-                return cast(T, target_cls())
+                instance = target_cls()
+                if self.dependency_injector is not None:
+                    self.dependency_injector.inject_dependencies(instance)
+                return cast(T, instance)
 
     def _init_singleton_component(
         self, component_cls: Type[Component], component_cls_name: str
@@ -494,13 +503,13 @@ class BeanManager:
         return bean
 
     def _inject_bean_collection_dependencies(
-        self, bean_collection_cls: Type[BeanCollection]
+        self, bean_collection_instance: BeanCollection
     ) -> None:
-        """Inject dependencies for a bean collection."""
+        """Inject dependencies for a bean collection instance."""
         logger.info(
-            f"[BEAN COLLECTION DEPENDENCY INJECTION] Injecting dependencies for {bean_collection_cls.get_name()}"
+            f"[BEAN COLLECTION DEPENDENCY INJECTION] Injecting dependencies for {bean_collection_instance.get_name()}"
         )
-        self.dependency_injector.inject_dependencies(bean_collection_cls)
+        self.dependency_injector.inject_dependencies(bean_collection_instance)
 
     def _validate_bean_view(self, view: BeanView, collection_name: str) -> None:
         """Validate a bean view before adding it to the container."""
@@ -526,7 +535,7 @@ class BeanManager:
             )
 
             collection = bean_collection_cls()
-            self._inject_bean_collection_dependencies(bean_collection_cls)
+            self._inject_bean_collection_dependencies(collection)
 
             bean_views = collection.scan_beans()
             for view in bean_views:
@@ -611,10 +620,6 @@ class PropertiesManager:
                 properties_key
             ] = optional_properties
 
-        # Update the global properties loader reference
-        _PropertiesLoader.optional_loaded_properties = (
-            self.container_manager.properties_instances
-        )
 
 
 class ApplicationContext:
@@ -631,16 +636,24 @@ class ApplicationContext:
     a single instance of the application context throughout the application's lifetime.
     """
 
-    def __init__(self, config: ApplicationContextConfig, server: FastAPI) -> None:
+    def __init__(
+        self,
+        config: ApplicationContextConfig,
+        server: FastAPI,
+        registry: Optional[ApplicationRegistry] = None,
+    ) -> None:
         self.server = server
         self.config = config
+        self.registry = registry or ApplicationRegistry()
         self.all_file_paths: set[str] = set()
         self.providers: list[EntityProvider] = []
 
         # Initialize managers
         self.container_manager = ContainerManager()
         self.dependency_injector = DependencyInjector(self.container_manager)
-        self.component_manager = ComponentManager(self.container_manager)
+        self.component_manager = ComponentManager(
+            self.container_manager, self.dependency_injector
+        )
         self.bean_manager = BeanManager(
             self.container_manager, self.dependency_injector
         )
@@ -672,6 +685,19 @@ class ApplicationContext:
         """Get a component instance by class and optional qualifier."""
         return self.component_manager.get_component(component_cls, qualifier)
 
+    def must_get_component(
+        self, component_cls: Type[T], qualifier: Optional[str] = None
+    ) -> T:
+        """Get a component instance, raising if not found."""
+        result = self.get_component(component_cls, qualifier)
+        if result is None:
+            name = component_cls.__name__
+            msg = f"Component {name} not found"
+            if qualifier:
+                msg += f" with qualifier '{qualifier}'"
+            raise LookupError(msg)
+        return result
+
     def register_component(self, component_cls: Type[Component]) -> None:
         """Register a component class in the application context."""
         self.component_manager.register_component(component_cls)
@@ -683,6 +709,19 @@ class ApplicationContext:
         """Get a bean instance by class and optional qualifier."""
         return self.bean_manager.get_bean(object_cls, qualifier)
 
+    def must_get_bean(
+        self, object_cls: Type[BT], qualifier: Optional[str] = None
+    ) -> BT:
+        """Get a bean instance, raising if not found."""
+        result = self.get_bean(object_cls, qualifier)
+        if result is None:
+            name = object_cls.__name__
+            msg = f"Bean {name} not found"
+            if qualifier:
+                msg += f" with qualifier '{qualifier}'"
+            raise LookupError(msg)
+        return result
+
     def register_bean_collection(self, bean_cls: Type[BeanCollection]) -> None:
         """Register a bean collection class in the application context."""
         self.bean_manager.register_bean_collection(bean_cls)
@@ -691,6 +730,14 @@ class ApplicationContext:
     def get_properties(self, properties_cls: Type[PT]) -> Optional[PT]:
         """Get a properties instance by class."""
         return self.properties_manager.get_properties(properties_cls)
+
+    def must_get_properties(self, properties_cls: Type[PT]) -> PT:
+        """Get a properties instance, raising if not found."""
+        result = self.get_properties(properties_cls)
+        if result is None:
+            name = properties_cls.__name__
+            raise LookupError(f"Properties {name} not found")
+        return result
 
     def register_properties(self, properties_cls: Type[Properties]) -> None:
         """Register a properties class in the application context."""
@@ -748,20 +795,18 @@ class ApplicationContext:
         # Initialize singleton beans
         self.bean_manager.init_singleton_beans()
 
+    def inject_dependencies_for_instance(self, instance: object) -> None:
+        """Inject dependencies into a specific instance."""
+        self.dependency_injector.inject_dependencies(instance)
+
     def inject_dependencies_for_external_object(self, target_cls: Type[Any]) -> None:
-        """Inject dependencies for an external object."""
+        """Inject dependencies for an external object (class-level, for middlewares etc.)."""
         self.dependency_injector.inject_dependencies(target_cls)
 
     def inject_dependencies_for_app_entities(self) -> None:
-        """Inject dependencies for all registered app entities."""
-        containers: list[Mapping[str, Type[AppEntities]]] = [
-            self.container_manager.component_classes,
-            self.container_manager.controller_classes,
-        ]
-
-        for container in containers:
-            for cls_name, cls in container.items():
-                self.dependency_injector.inject_dependencies(cls)
+        """Inject dependencies for all registered singleton component instances."""
+        for instance in self.container_manager.component_instances.values():
+            self.dependency_injector.inject_dependencies(instance)
 
     def _validate_entity_provider_dependencies(self, provider: EntityProvider) -> None:
         """Validate dependencies for a single entity provider."""

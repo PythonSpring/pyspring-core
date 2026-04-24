@@ -164,13 +164,14 @@ class TestApplicationContext:
         retrieved_properties = app_context.get_properties(TestProperties)
         assert retrieved_properties is properties_instance
 
-    def test_inject_dependencies_for_components_and_controllers(
+    def test_inject_dependencies_for_components(
         self, app_context: ApplicationContext
     ):
         """
-        Tests the injection of dependencies for components and controllers in the ApplicationContext.
+        Tests the injection of dependencies for component instances in the ApplicationContext.
 
-        This test ensures that the ApplicationContext correctly injects the dependencies for the registered components and controllers. It verifies that the necessary dependencies are available and accessible on the component and controller instances.
+        This test ensures that the ApplicationContext correctly injects the dependencies
+        onto singleton component instances (not on classes).
         """
 
         class TestNestedComponent(Component): ...
@@ -178,17 +179,36 @@ class TestApplicationContext:
         class TestComponent(Component):
             test_nested_component: TestNestedComponent
 
+        app_context.register_component(TestComponent)
+        app_context.register_component(TestNestedComponent)
+        app_context.init_ioc_container()
+        app_context.inject_dependencies_for_app_entities()
+
+        test_component_instance = app_context.get_component(TestComponent)
+        assert test_component_instance is not None
+        assert hasattr(test_component_instance, "test_nested_component")
+        assert isinstance(
+            test_component_instance.test_nested_component, TestNestedComponent
+        )
+
+    def test_inject_dependencies_for_controllers(
+        self, app_context: ApplicationContext
+    ):
+        """
+        Tests that controller instances receive DI when injected via inject_dependencies_for_instance.
+        """
+
+        class TestComponent(Component): ...
+
         class TestController(RestController):
             test_component: TestComponent
 
         app_context.register_component(TestComponent)
-        app_context.register_component(TestNestedComponent)
         app_context.register_controller(TestController)
         app_context.init_ioc_container()
         app_context.inject_dependencies_for_app_entities()
-        assert hasattr(TestComponent, "test_nested_component") and isinstance(
-            TestComponent.test_nested_component, TestNestedComponent
-        )
-        assert hasattr(TestController, "test_component") and isinstance(
-            TestController.test_component, TestComponent
-        )
+
+        controller: TestController = app_context.get_controller_instances()[0] # type: ignore
+        app_context.inject_dependencies_for_instance(controller)
+        assert hasattr(controller, "test_component")
+        assert isinstance(controller.test_component, TestComponent)
