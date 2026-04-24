@@ -9,6 +9,9 @@ Entity classes are defined at module level so that __qualname__ is clean
 (e.g. "ItemController.list_items" not "TestClass.test_method.<locals>...").
 """
 
+from collections.abc import Generator
+from typing import Any, Callable
+
 import pytest
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
@@ -24,10 +27,12 @@ from py_spring_core.core.entities.controllers.route_mapping import (
     DeleteMapping,
     GetMapping,
     PostMapping,
+    RouteRegistration,
     _pending_routes,
     drain_pending_routes,
 )
 from py_spring_core.event.application_event_handler_registry import (
+    EventHandler,
     EventListener,
     _pending_event_handlers,
     drain_pending_event_handlers,
@@ -51,7 +56,7 @@ class ItemController(RestController):
         prefix = "/items"
 
     @GetMapping("/")
-    def list_items(self):
+    def list_items(self) -> list[dict[str, Any]]:
         return [{"id": 1, "name": "apple"}]
 
 
@@ -60,21 +65,21 @@ class UserController(RestController):
         prefix = "/users"
 
     @GetMapping("/")
-    def list_users(self):
+    def list_users(self) -> list[Any]:
         return []
 
     @PostMapping("/")
-    def create_user(self):
+    def create_user(self) -> dict[str, bool]:
         return {"created": True}
 
     @DeleteMapping("/{user_id}")
-    def delete_user(self, user_id: int):
+    def delete_user(self, user_id: int) -> dict[str, int]:
         return {"deleted": user_id}
 
 
 class GhostController(RestController):
     @GetMapping("/ghost")
-    def ghost(self):
+    def ghost(self) -> str:
         return "boo"
 
 
@@ -100,11 +105,11 @@ class OrderService(Component):
     class Config:
         scope = ComponentScope.Singleton
 
-    def __init__(self):
-        self.handled_events = []
+    def __init__(self) -> None:
+        self.handled_events: list[OrderPlaced] = []
 
     @EventListener(OrderPlaced)
-    def on_order_placed(self, event: OrderPlaced):
+    def on_order_placed(self, event: OrderPlaced) -> None:
         self.handled_events.append(event)
 
 
@@ -113,11 +118,11 @@ class NotificationService(Component):
         scope = ComponentScope.Singleton
         name = "NotificationService"
 
-    def __init__(self):
-        self.notified = False
+    def __init__(self) -> None:
+        self.notified: bool = False
 
     @EventListener(UserCreated)
-    def on_user_created(self, event: UserCreated):
+    def on_user_created(self, event: UserCreated) -> None:
         self.notified = True
 
 
@@ -126,7 +131,7 @@ class BillingService(Component):
         name = "BillingService"
 
     @EventListener(PaymentReceived)
-    def on_payment(self, event: PaymentReceived):
+    def on_payment(self, event: PaymentReceived) -> None:
         pass
 
 
@@ -135,13 +140,13 @@ class AuditService(Component):
         name = "AuditService"
 
     @EventListener(PaymentReceived)
-    def on_payment(self, event: PaymentReceived):
+    def on_payment(self, event: PaymentReceived) -> None:
         pass
 
 
 class SkippedComponent(Component):
     @EventListener(SkippedEvent)
-    def handle(self, event: SkippedEvent):
+    def handle(self, event: SkippedEvent) -> None:
         pass
 
 
@@ -160,18 +165,18 @@ class OrphanError(Exception):
 
 
 @ExceptionHandler(AppError)
-def handle_app_error(exc: AppError):
+def handle_app_error(exc: AppError) -> dict[str, str]:
     return {"error": str(exc)}
 
 
 @ExceptionHandler(ServiceError)
-def handle_service_error(exc: ServiceError):
+def handle_service_error(exc: ServiceError) -> Any:
     from fastapi.responses import JSONResponse
     return JSONResponse(status_code=503, content={"detail": str(exc)})
 
 
 @ExceptionHandler(OrphanError)
-def handle_orphan(exc: OrphanError):
+def handle_orphan(exc: OrphanError) -> str:
     return "handled"
 
 
@@ -190,11 +195,11 @@ class TaskController(RestController):
         prefix = "/tasks"
 
     @GetMapping("/")
-    def list_tasks(self):
+    def list_tasks(self) -> list[dict[str, str]]:
         return [{"task": "write tests"}]
 
     @PostMapping("/")
-    def create_task(self):
+    def create_task(self) -> dict[str, bool]:
         return {"created": True}
 
 
@@ -203,24 +208,24 @@ class TaskWorker(Component):
         scope = ComponentScope.Singleton
         name = "TaskWorker"
 
-    def __init__(self):
-        self.completed = []
+    def __init__(self) -> None:
+        self.completed: list[TaskCompleted] = []
 
     @EventListener(TaskCompleted)
-    def on_complete(self, event: TaskCompleted):
+    def on_complete(self, event: TaskCompleted) -> None:
         self.completed.append(event)
 
 
 @ExceptionHandler(TaskError)
-def handle_task_error(exc: TaskError):
+def handle_task_error(exc: TaskError) -> Any:
     from fastapi.responses import JSONResponse
     return JSONResponse(status_code=500, content={"error": str(exc)})
 
 
 # Snapshot all decorator registrations from module-level definitions, then clear.
-_ROUTE_SNAPSHOT = list(_pending_routes)
-_EVENT_HANDLER_SNAPSHOT = list(_pending_event_handlers)
-_EXCEPTION_HANDLER_SNAPSHOT = list(_pending_exception_handlers)
+_ROUTE_SNAPSHOT: list[RouteRegistration] = list(_pending_routes)
+_EVENT_HANDLER_SNAPSHOT: list[EventHandler] = list(_pending_event_handlers)
+_EXCEPTION_HANDLER_SNAPSHOT: list[tuple[str, Callable[..., Any]]] = list(_pending_exception_handlers)
 
 _pending_routes.clear()
 _pending_event_handlers.clear()
@@ -232,19 +237,19 @@ _pending_exception_handlers.clear()
 # ===========================================================================
 
 
-def _restore_pending_routes_for(*controller_names: str):
+def _restore_pending_routes_for(*controller_names: str) -> None:
     for r in _ROUTE_SNAPSHOT:
         if r.class_name in controller_names:
             _pending_routes.append(r)
 
 
-def _restore_pending_event_handlers_for(*class_names: str):
+def _restore_pending_event_handlers_for(*class_names: str) -> None:
     for h in _EVENT_HANDLER_SNAPSHOT:
         if h.class_name in class_names:
             _pending_event_handlers.append(h)
 
 
-def _restore_pending_exception_handlers_for(*exc_names: str):
+def _restore_pending_exception_handlers_for(*exc_names: str) -> None:
     for name, func in _EXCEPTION_HANDLER_SNAPSHOT:
         if name in exc_names:
             _pending_exception_handlers.append((name, func))
@@ -265,7 +270,9 @@ def _drain_into_registry(registry: ApplicationRegistry) -> None:
         registry.exception_handlers[exc_name] = handler_func
 
 
-def _wire_controllers(server, registry, app_context):
+def _wire_controllers(
+    server: FastAPI, registry: ApplicationRegistry, app_context: ApplicationContext
+) -> None:
     """Init controllers the same way PySpringApplication._init_controllers does."""
     for ctrl in app_context.get_controller_instances():
         name = ctrl.__class__.__name__
@@ -282,7 +289,7 @@ def _wire_controllers(server, registry, app_context):
 
 
 @pytest.fixture(autouse=True)
-def _clear_all_pending():
+def _clear_all_pending() -> Generator[None]:
     _pending_routes.clear()
     _pending_event_handlers.clear()
     _pending_exception_handlers.clear()
@@ -303,7 +310,7 @@ def server() -> FastAPI:
 
 
 @pytest.fixture
-def app_context(server, registry):
+def app_context(server: FastAPI, registry: ApplicationRegistry) -> ApplicationContext:
     config = ApplicationContextConfig(properties_path="")
     return ApplicationContext(config, server=server, registry=registry)
 
@@ -315,7 +322,7 @@ def app_context(server, registry):
 
 class TestRoutesDrainE2E:
 
-    def test_get_route_is_callable_after_drain(self, server, registry, app_context):
+    def test_get_route_is_callable_after_drain(self, server: FastAPI, registry: ApplicationRegistry, app_context: ApplicationContext) -> None:
         _restore_pending_routes_for("ItemController")
         _drain_into_registry(registry)
 
@@ -327,7 +334,7 @@ class TestRoutesDrainE2E:
         assert resp.status_code == 200
         assert resp.json() == [{"id": 1, "name": "apple"}]
 
-    def test_multiple_routes_on_same_controller(self, server, registry, app_context):
+    def test_multiple_routes_on_same_controller(self, server: FastAPI, registry: ApplicationRegistry, app_context: ApplicationContext) -> None:
         _restore_pending_routes_for("UserController")
         _drain_into_registry(registry)
 
@@ -343,7 +350,7 @@ class TestRoutesDrainE2E:
         assert client.delete("/users/42").status_code == 200
         assert client.delete("/users/42").json() == {"deleted": 42}
 
-    def test_no_routes_without_drain(self, registry):
+    def test_no_routes_without_drain(self, registry: ApplicationRegistry) -> None:
         """If drain is skipped, the registry stays empty."""
         _restore_pending_routes_for("GhostController")
         # Intentionally skip drain
@@ -357,7 +364,7 @@ class TestRoutesDrainE2E:
 
 class TestEventHandlersDrainE2E:
 
-    def test_event_handler_registered_after_drain(self, registry):
+    def test_event_handler_registered_after_drain(self, registry: ApplicationRegistry) -> None:
         _restore_pending_event_handlers_for("OrderService")
         _drain_into_registry(registry)
 
@@ -367,7 +374,7 @@ class TestEventHandlersDrainE2E:
         assert handlers[0].class_name == "OrderService"
         assert handlers[0].func_name == "on_order_placed"
 
-    def test_event_handler_callable_on_component_instance(self, registry, app_context):
+    def test_event_handler_callable_on_component_instance(self, registry: ApplicationRegistry, app_context: ApplicationContext) -> None:
         _restore_pending_event_handlers_for("NotificationService")
         _drain_into_registry(registry)
 
@@ -383,7 +390,7 @@ class TestEventHandlersDrainE2E:
         handler.func(instance, event)
         assert instance.notified is True
 
-    def test_multiple_handlers_for_same_event(self, registry):
+    def test_multiple_handlers_for_same_event(self, registry: ApplicationRegistry) -> None:
         _restore_pending_event_handlers_for("BillingService", "AuditService")
         _drain_into_registry(registry)
 
@@ -391,7 +398,7 @@ class TestEventHandlersDrainE2E:
         class_names = {h.class_name for h in registry.event_handlers["PaymentReceived"]}
         assert class_names == {"BillingService", "AuditService"}
 
-    def test_no_handlers_without_drain(self, registry):
+    def test_no_handlers_without_drain(self, registry: ApplicationRegistry) -> None:
         _restore_pending_event_handlers_for("SkippedComponent")
         # Intentionally skip drain
         assert registry.event_handlers.get("SkippedEvent") is None
@@ -404,7 +411,7 @@ class TestEventHandlersDrainE2E:
 
 class TestExceptionHandlersDrainE2E:
 
-    def test_exception_handler_registered_after_drain(self, registry):
+    def test_exception_handler_registered_after_drain(self, registry: ApplicationRegistry) -> None:
         _restore_pending_exception_handlers_for("AppError")
         _drain_into_registry(registry)
 
@@ -412,7 +419,7 @@ class TestExceptionHandlersDrainE2E:
         result = registry.exception_handlers["AppError"](AppError("boom"))
         assert result == {"error": "boom"}
 
-    def test_exception_handler_wired_into_fastapi(self, server, registry):
+    def test_exception_handler_wired_into_fastapi(self, server: FastAPI, registry: ApplicationRegistry) -> None:
         _restore_pending_exception_handlers_for("ServiceError")
         _drain_into_registry(registry)
 
@@ -428,7 +435,7 @@ class TestExceptionHandlersDrainE2E:
         assert resp.status_code == 503
         assert resp.json() == {"detail": "service down"}
 
-    def test_no_handlers_without_drain(self, registry):
+    def test_no_handlers_without_drain(self, registry: ApplicationRegistry) -> None:
         _restore_pending_exception_handlers_for("OrphanError")
         # Skip drain
         assert registry.exception_handlers.get("OrphanError") is None
@@ -441,7 +448,7 @@ class TestExceptionHandlersDrainE2E:
 
 class TestFullDrainSequence:
 
-    def test_all_drain_targets_populated_in_single_pass(self, server, registry, app_context):
+    def test_all_drain_targets_populated_in_single_pass(self, server: FastAPI, registry: ApplicationRegistry, app_context: ApplicationContext) -> None:
         """Simulate the real boot: decorators fire → drain → everything lands in registry."""
         _restore_pending_routes_for("TaskController")
         _restore_pending_event_handlers_for("TaskWorker")
@@ -473,6 +480,7 @@ class TestFullDrainSequence:
 
         # --- verify event handler is callable on the real component ---
         worker = app_context.get_component(TaskWorker)
+        assert worker is not None
         handler = registry.event_handlers["TaskCompleted"][0]
         event = TaskCompleted()
         handler.func(worker, event)
