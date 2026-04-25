@@ -166,3 +166,5 @@ app-config.json
 application-properties.json
 main.py
 pdm.lock
+pyspring-docs
+skills/
