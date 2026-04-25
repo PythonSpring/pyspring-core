@@ -28,6 +28,7 @@ from py_spring_core.core.entities.bean_collection.bean_collection import BeanCol
 from py_spring_core.core.entities.component.component import Component, ComponentLifeCycle
 from py_spring_core.core.entities.controllers.rest_controller import RestController
 from py_spring_core.core.starter.py_spring_starter import PySpringStarter
+from py_spring_core.core.starter.starter_discovery import StarterDiscovery
 from py_spring_core.core.entities.middlewares.middleware import Middleware
 from py_spring_core.core.entities.middlewares.middleware_registry import (
     MiddlewareConfiguration,
@@ -68,7 +69,9 @@ class PySpringApplication:
     PY_FILE_EXTENSION = ".py"
 
     def __init__(
-        self, app_config_path: str, starters: Iterable[PySpringStarter] = ()
+        self, 
+        app_config_path: str, 
+        starters: Iterable[PySpringStarter] = ()
     ) -> None:
         self.starters = list(starters)
         logger.debug(
@@ -194,9 +197,32 @@ class PySpringApplication:
                 continue
             cls.set_application_context(self.app_context)
 
+    def _discover_and_merge_starters(self) -> None:
+        """Auto-discover starters from entry points and merge into self.starters.
+
+        Manual starters take priority: if a starter class is already present
+        (passed explicitly), the auto-discovered duplicate is skipped.
+        """
+        already_registered = {type(s) for s in self.starters}
+        auto_discovered = StarterDiscovery.from_entry_points()
+
+        for cls in auto_discovered:
+            if cls in already_registered:
+                logger.debug(
+                    f"[STARTER DISCOVERY] Skipping auto-discovered starter "
+                    f"{cls.__name__} (already registered manually)"
+                )
+                continue
+            logger.info(
+                f"[STARTER DISCOVERY] Auto-discovered starter: {cls.__name__}"
+            )
+            self.starters.append(cls())
+            already_registered.add(cls)
+
     def _prepare_injected_classes(self) -> Iterable[Type[object]]:
         scanned_classes = self._scan_classes_for_project()
         system_managed_classes = self._get_system_managed_classes()
+        self._discover_and_merge_starters()
         self._configure_starters(self.starters)
         starter_entities = self._get_all_entities_from_starters(
             self.starters

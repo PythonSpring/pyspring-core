@@ -6,10 +6,8 @@ from abc import ABC, abstractmethod
 from typing import Type, Any
 
 from py_spring_core.core.starter.py_spring_starter import PySpringStarter
-from py_spring_core.core.utils import (
-    discover_starters_from_packages,
-    get_unimplemented_abstract_methods,
-)
+from py_spring_core.core.starter.starter_discovery import StarterDiscovery
+from py_spring_core.core.utils import get_unimplemented_abstract_methods
 
 
 class TestFrameworkUtils:
@@ -242,7 +240,7 @@ def _make_module(name: str, source: str) -> types.ModuleType:
 
 
 class TestDiscoverStartersFromPackages:
-    """Test suite for discover_starters_from_packages."""
+    """Test suite for StarterDiscovery.from_packages."""
 
     def _create_fake_package(self, pkg_name: str, sub_modules: dict[str, str] | None = None):
         """Helper to build a fake package with optional sub-modules in sys.modules.
@@ -278,7 +276,7 @@ class TestDiscoverStartersFromPackages:
         )
         sys.path.insert(0, str(tmp_path))
         try:
-            result = discover_starters_from_packages(["fake_starter_pkg"])
+            result = StarterDiscovery.from_packages(["fake_starter_pkg"])
             assert len(result) == 1
             assert result[0].__name__ == "MyStarter"
         finally:
@@ -300,7 +298,7 @@ class TestDiscoverStartersFromPackages:
 
         sys.path.insert(0, str(tmp_path))
         try:
-            result = discover_starters_from_packages(["nested_pkg"])
+            result = StarterDiscovery.from_packages(["nested_pkg"])
             names = [cls.__name__ for cls in result]
             assert "SubStarter" in names
         finally:
@@ -318,7 +316,7 @@ class TestDiscoverStartersFromPackages:
         )
         sys.path.insert(0, str(tmp_path))
         try:
-            result = discover_starters_from_packages(["base_only_pkg"])
+            result = StarterDiscovery.from_packages(["base_only_pkg"])
             assert len(result) == 0
         finally:
             sys.path.remove(str(tmp_path))
@@ -331,7 +329,7 @@ class TestDiscoverStartersFromPackages:
         (pkg_dir / "__init__.py").write_text("X = 42\n")
         sys.path.insert(0, str(tmp_path))
         try:
-            result = discover_starters_from_packages(["no_starter_pkg"])
+            result = StarterDiscovery.from_packages(["no_starter_pkg"])
             assert result == []
         finally:
             sys.path.remove(str(tmp_path))
@@ -339,7 +337,7 @@ class TestDiscoverStartersFromPackages:
 
     def test_skips_invalid_package_gracefully(self):
         """An invalid package name logs a warning and does not raise."""
-        result = discover_starters_from_packages(["totally_nonexistent_pkg_12345"])
+        result = StarterDiscovery.from_packages(["totally_nonexistent_pkg_12345"])
         assert result == []
 
     def test_handles_multiple_packages(self, tmp_path):
@@ -353,7 +351,7 @@ class TestDiscoverStartersFromPackages:
             )
         sys.path.insert(0, str(tmp_path))
         try:
-            result = discover_starters_from_packages(["multi_a", "multi_b"])
+            result = StarterDiscovery.from_packages(["multi_a", "multi_b"])
             names = {cls.__name__ for cls in result}
             assert names == {"Starter_multi_a", "Starter_multi_b"}
         finally:
@@ -379,7 +377,7 @@ class TestDiscoverStartersFromPackages:
         )
         sys.path.insert(0, str(tmp_path))
         try:
-            result = discover_starters_from_packages(["dedup_a", "dedup_b"])
+            result = StarterDiscovery.from_packages(["dedup_a", "dedup_b"])
             assert len(result) == 1
             assert result[0].__name__ == "SharedStarter"
         finally:
