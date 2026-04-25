@@ -195,6 +195,16 @@ class DependencyInjector:
                 return True
         return False
 
+    def _has_default_value(self, target: object, attr_name: str) -> bool:
+        """Check if an attribute has a default value on the class or instance."""
+        target_cls = type(target) if not isinstance(target, type) else target
+        if hasattr(target, attr_name):
+            return True
+        for cls in target_cls.__mro__:
+            if attr_name in cls.__dict__:
+                return True
+        return False
+
     def inject_dependencies(self, target: object) -> None:
         """Inject dependencies into a target instance based on its class annotations."""
         target_cls = type(target) if not isinstance(target, type) else target
@@ -212,7 +222,15 @@ class DependencyInjector:
                 continue
 
             if not isclass(entity_cls):
-                self._try_inject_collection_dependency(target, attr_name, entity_cls)
+                injected = self._try_inject_collection_dependency(target, attr_name, entity_cls)
+                if not injected and not self._has_default_value(target, attr_name):
+                    error_message = (
+                        f"[DEPENDENCY INJECTION FAILED] Fail to inject dependency for attribute: {attr_name} "
+                        f"with dependency: {entity_cls} with qualifier: {qualifier}, "
+                        f"consider register such dependency with Component decorator"
+                    )
+                    logger.critical(error_message)
+                    raise ValueError(error_message)
                 continue
 
             # Handle Properties injection
@@ -224,6 +242,14 @@ class DependencyInjector:
             if self._try_inject_entity_dependency(
                 target, attr_name, entity_cls, qualifier
             ):
+                continue
+
+            # If attribute has a default value, skip injection instead of failing
+            if self._has_default_value(target, attr_name):
+                logger.debug(
+                    f"[DEPENDENCY INJECTION SKIPPED] Skipping injection for attribute: {attr_name} "
+                    f"with type: {entity_cls.__name__} - has default value and is not an injectable type"
+                )
                 continue
 
             # If we get here, injection failed
@@ -275,11 +301,19 @@ class ComponentManager:
         if not component_cls.__abstractmethods__:
             return cast(Type[Component], component_cls).get_name()
 
-        # For abstract classes that need implementations
-        subclasses = [
-            sc for sc in component_cls.__subclasses__()
-            if issubclass(sc, Component)
-        ]
+        # For abstract classes that need implementations — search recursively
+        def _collect_concrete_subclasses(cls: type) -> list[Type[Component]]:
+            result: list[Type[Component]] = []
+            for sc in cls.__subclasses__():
+                if not issubclass(sc, Component):
+                    continue
+                if getattr(sc, "__abstractmethods__", frozenset()):
+                    result.extend(_collect_concrete_subclasses(sc))
+                else:
+                    result.append(sc)
+            return result
+
+        subclasses = _collect_concrete_subclasses(component_cls)
         if len(subclasses) == 0:
             raise ValueError(
                 f"[ABSTRACT CLASS ERROR] Abstract class {component_cls.__name__} has no subclasses"
@@ -354,6 +388,7 @@ class ComponentManager:
                 instance = target_cls()
                 if self.dependency_injector is not None:
                     self.dependency_injector.inject_dependencies(instance)
+                instance.finish_initialization_cycle()
                 return cast(T, instance)
 
     def _init_singleton_component(
@@ -378,12 +413,16 @@ class ComponentManager:
     def _get_abstract_class_component_subclasses(
         self, component_cls: Type[ABC]
     ) -> list[Type[Component]]:
-        """Get all Component subclasses of an abstract class."""
-        return [
-            subclass
-            for subclass in component_cls.__subclasses__()
-            if issubclass(subclass, Component)
-        ]
+        """Get all concrete Component subclasses of an abstract class, recursively."""
+        result: list[Type[Component]] = []
+        for subclass in component_cls.__subclasses__():
+            if not issubclass(subclass, Component):
+                continue
+            if getattr(subclass, "__abstractmethods__", frozenset()):
+                result.extend(self._get_abstract_class_component_subclasses(subclass))
+            else:
+                result.append(subclass)
+        return result
 
     def _init_abstract_component_subclasses(self, component_cls: Type[ABC]) -> None:
         """Initialize singleton instances for abstract component subclasses."""

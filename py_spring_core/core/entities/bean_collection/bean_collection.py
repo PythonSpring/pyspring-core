@@ -67,7 +67,13 @@ class BeanCollection:
                 continue
 
             creation_func = getattr(cls, func_name)
-            bean_name: str = creation_func.__annotations__[cls.RETURN_KEY].__name__
+            annotations = getattr(creation_func, "__annotations__", {})
+            if cls.RETURN_KEY not in annotations:
+                raise TypeError(
+                    f"[BEAN CREATION ERROR] Bean creation method '{func_name}' in "
+                    f"{cls.__name__} must have a return type annotation"
+                )
+            bean_name: str = annotations[cls.RETURN_KEY].__name__
             view = BeanView(
                 bean_name=bean_name,
                 bean_creation_func=creation_func,
