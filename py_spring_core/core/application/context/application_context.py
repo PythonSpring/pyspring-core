@@ -45,6 +45,12 @@ class ComponentNotFoundError(Exception):
     pass
 
 
+class ComponentConflictError(Exception):
+    """Raised when two different component classes are registered with the same name."""
+
+    pass
+
+
 class InvalidDependencyError(Exception):
     """Raised when a dependency is invalid or not found in the application context."""
 
@@ -342,13 +348,17 @@ class ComponentManager:
             component_cls_name
         )
 
-        # Check if it's the same component to avoid duplicate registration
-        if (
-            existing_component
-            and existing_component.__name__ == component_cls.__name__
-            and existing_component == component_cls
-        ):
-            return
+        if existing_component is not None:
+            # Same class re-registered — skip
+            if existing_component is component_cls:
+                return
+
+            # Different class, same name — error
+            raise ComponentConflictError(
+                f"[COMPONENT CONFLICT] Component name '{component_cls_name}' is already "
+                f"registered by {existing_component.__name__}. "
+                f"Cannot register {component_cls.__name__} with the same name."
+            )
 
         self.container_manager.component_classes[component_cls_name] = (
             component_cls

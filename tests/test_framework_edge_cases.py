@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from py_spring_core.core.application.context.application_context import (
     ApplicationContext,
     ApplicationContextConfig,
+    ComponentConflictError,
     InvalidDependencyError,
 )
 from py_spring_core.core.application.application_registry import ApplicationRegistry
@@ -191,8 +192,8 @@ class TestDependencyInjection:
 
 class TestComponentRegistration:
 
-    def test_duplicate_config_name_overwrites_silently(self, app_context: ApplicationContext):
-        """When two components share the same Config.name, the later registration wins."""
+    def test_duplicate_config_name_raises_error(self, app_context: ApplicationContext):
+        """When two different components share the same Config.name, registration raises ComponentConflictError."""
 
         class ServiceV1(Component):
             class Config:
@@ -205,12 +206,9 @@ class TestComponentRegistration:
             version: str = "v2"
 
         app_context.register_component(ServiceV1)
-        app_context.register_component(ServiceV2)
-        app_context.init_ioc_container()
 
-        result = app_context.get_component(ServiceV1)
-        assert result is not None
-        assert isinstance(result, ServiceV2)
+        with pytest.raises(ComponentConflictError, match="MyService"):
+            app_context.register_component(ServiceV2)
 
     def test_is_within_context_returns_false_for_unregistered(self, app_context: ApplicationContext):
         class Unknown(Component): ...
