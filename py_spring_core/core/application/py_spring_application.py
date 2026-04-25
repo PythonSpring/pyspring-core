@@ -27,7 +27,7 @@ from py_spring_core.core.application.loguru_config import LogFormat
 from py_spring_core.core.entities.bean_collection.bean_collection import BeanCollection
 from py_spring_core.core.entities.component.component import Component, ComponentLifeCycle
 from py_spring_core.core.entities.controllers.rest_controller import RestController
-from py_spring_core.core.entities.entity_provider.entity_provider import EntityProvider
+from py_spring_core.core.starter.py_spring_starter import PySpringStarter
 from py_spring_core.core.entities.middlewares.middleware import Middleware
 from py_spring_core.core.entities.middlewares.middleware_registry import (
     MiddlewareConfiguration,
@@ -68,9 +68,9 @@ class PySpringApplication:
     PY_FILE_EXTENSION = ".py"
 
     def __init__(
-        self, app_config_path: str, entity_providers: Iterable[EntityProvider] = ()
+        self, app_config_path: str, starters: Iterable[PySpringStarter] = ()
     ) -> None:
-        self.entity_providers = entity_providers
+        self.starters = list(starters)
         logger.debug(
             f"[APP INIT] Initialize the app from config path: {app_config_path}"
         )
@@ -146,12 +146,12 @@ class PySpringApplication:
                     continue
                 handler(_cls)
 
-    def _get_all_entities_from_entity_providers(
-        self, entity_providers: Iterable[EntityProvider]
+    def _get_all_entities_from_starters(
+        self, starters: Iterable[PySpringStarter]
     ) -> Iterable[Type[AppEntities]]:
         entities: list[Type[AppEntities]] = []
-        for provider in entity_providers:
-            entities.extend(provider.get_entities())
+        for starter in starters:
+            entities.extend(starter.get_entities())
 
         return entities
 
@@ -174,9 +174,9 @@ class PySpringApplication:
         logger.debug(f"[PROPERTIES INIT] Register properties: {_cls.__name__}")
         self.app_context.register_properties(_cls)
 
-    def _init_providers(self, providers: Iterable[EntityProvider]) -> None:
-        for provider in providers:
-            provider.provider_init()
+    def _init_starters(self, starters: Iterable[PySpringStarter]) -> None:
+        for starter in starters:
+            starter.starter_init()
 
     def _inject_application_context_to_context_required(
         self, classes: Iterable[Type[object]]
@@ -189,16 +189,16 @@ class PySpringApplication:
     def _prepare_injected_classes(self) -> Iterable[Type[object]]:
         scanned_classes = self._scan_classes_for_project()
         system_managed_classes = self._get_system_managed_classes()
-        provider_entities = self._get_all_entities_from_entity_providers(
-            self.entity_providers
+        starter_entities = self._get_all_entities_from_starters(
+            self.starters
         )
-        provider_classes = [provider.__class__ for provider in self.entity_providers]
-        # providers typically requires app context, so add to classess to inject
+        starter_classes = [starter.__class__ for starter in self.starters]
+        # starters typically requires app context, so add to classes to inject
         classes_to_inject = [
             *scanned_classes,
             *system_managed_classes,
-            *provider_entities,
-            *provider_classes,
+            *starter_entities,
+            *starter_classes,
         ]
         return classes_to_inject
 
@@ -235,9 +235,9 @@ class PySpringApplication:
         self.app_context.init_ioc_container()
         self.app_context.inject_dependencies_for_app_entities()
         self.app_context.set_all_file_paths(self.target_dir_absolute_file_paths)
-        self.app_context.validate_entity_providers()
+        self.app_context.validate_starters()
         # after injecting all deps, lifecycle (init) can be called
-        self._init_providers(self.entity_providers)
+        self._init_starters(self.starters)
         self._handle_singleton_components_life_cycle(ComponentLifeCycle.Init)
 
     def _handle_singleton_components_life_cycle(

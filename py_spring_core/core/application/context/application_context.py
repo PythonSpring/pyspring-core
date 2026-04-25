@@ -30,7 +30,7 @@ from py_spring_core.core.entities.bean_collection.bean_collection import (
 )
 from py_spring_core.core.entities.component.component import Component, ComponentScope
 from py_spring_core.core.entities.controllers.rest_controller import RestController
-from py_spring_core.core.entities.entity_provider.entity_provider import EntityProvider
+from py_spring_core.core.starter.py_spring_starter import PySpringStarter
 from py_spring_core.core.entities.properties.properties import Properties
 from py_spring_core.core.entities.properties.properties_loader import _PropertiesLoader
 
@@ -41,6 +41,12 @@ PT = TypeVar("PT", bound=Properties)
 
 class ComponentNotFoundError(Exception):
     """Raised when a component is not found in the application context."""
+
+    pass
+
+
+class ComponentConflictError(Exception):
+    """Raised when two different component classes are registered with the same name."""
 
     pass
 
@@ -342,13 +348,17 @@ class ComponentManager:
             component_cls_name
         )
 
-        # Check if it's the same component to avoid duplicate registration
-        if (
-            existing_component
-            and existing_component.__name__ == component_cls.__name__
-            and existing_component == component_cls
-        ):
-            return
+        if existing_component is not None:
+            # Same class re-registered — skip
+            if existing_component is component_cls:
+                return
+
+            # Different class, same name — error
+            raise ComponentConflictError(
+                f"[COMPONENT CONFLICT] Component name '{component_cls_name}' is already "
+                f"registered by {existing_component.__name__}. "
+                f"Cannot register {component_cls.__name__} with the same name."
+            )
 
         self.container_manager.component_classes[component_cls_name] = (
             component_cls
@@ -685,7 +695,7 @@ class ApplicationContext:
         self.config = config
         self.registry = registry or ApplicationRegistry()
         self.all_file_paths: set[str] = set()
-        self.providers: list[EntityProvider] = []
+        self.starters: list[PySpringStarter] = []
 
         # Initialize managers
         self.container_manager = ContainerManager()
@@ -847,11 +857,11 @@ class ApplicationContext:
         for instance in self.container_manager.component_instances.values():
             self.dependency_injector.inject_dependencies(instance)
 
-    def _validate_entity_provider_dependencies(self, provider: EntityProvider) -> None:
-        """Validate dependencies for a single entity provider."""
-        for dependency in provider.depends_on:
+    def _validate_starter_dependencies(self, starter: PySpringStarter) -> None:
+        """Validate dependencies for a single starter."""
+        for dependency in starter.depends_on:
             if not issubclass(dependency, AppEntities):
-                error = f"[INVALID DEPENDENCY] Invalid dependency {dependency.__name__} in {provider.__class__.__name__}"
+                error = f"[INVALID DEPENDENCY] Invalid dependency {dependency.__name__} in {starter.__class__.__name__}"
                 logger.error(error)
                 raise InvalidDependencyError(error)
 
@@ -860,7 +870,7 @@ class ApplicationContext:
                 logger.error(error)
                 raise InvalidDependencyError(error)
 
-    def validate_entity_providers(self) -> None:
-        """Validate all entity providers in the application context."""
-        for provider in self.providers:
-            self._validate_entity_provider_dependencies(provider)
+    def validate_starters(self) -> None:
+        """Validate all starters in the application context."""
+        for starter in self.starters:
+            self._validate_starter_dependencies(starter)

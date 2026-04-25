@@ -16,7 +16,7 @@ except ImportError:
 
 
 @dataclass
-class EntityProvider:
+class PySpringStarter:
     component_classes: list[Type[Component]] = field(default_factory=list)
     bean_collection_classes: list[Type[BeanCollection]] = field(default_factory=list)
     properties_classes: list[Type[Properties]] = field(default_factory=list)
@@ -36,4 +36,4 @@ class EntityProvider:
     def set_context(self, app_context: "ApplicationContext") -> None:
         self.app_context = app_context
 
-    def provider_init(self) -> None: ...
+    def starter_init(self) -> None: ...
