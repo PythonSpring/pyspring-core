@@ -9,7 +9,7 @@ from py_spring_core.core.entities.controllers.route_mapping import (
     PostMapping,
     PutMapping,
 )
-from py_spring_core.core.entities.entity_provider.entity_provider import EntityProvider
+from py_spring_core.core.starter.py_spring_starter import PySpringStarter
 from py_spring_core.core.entities.middlewares.middleware import Middleware
 from py_spring_core.core.entities.middlewares.middleware_registry import (
     MiddlewareRegistry, MiddlewareConfiguration
@@ -36,7 +36,7 @@ __all__ = [
     "PatchMapping",
     "PostMapping",
     "PutMapping",
-    "EntityProvider",
+    "PySpringStarter",
     "Properties",
     "ApplicationContextRequired",
     "ApplicationEventPublisher",

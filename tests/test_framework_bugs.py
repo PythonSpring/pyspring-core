@@ -364,39 +364,39 @@ class TestIsWithinContext:
 
 
 # ============================================================================
-# EDGE CASE: EntityProvider with depends_on referencing unregistered class
+# EDGE CASE: PySpringStarter with depends_on referencing unregistered class
 # ============================================================================
 
-class TestEntityProviderDependencyValidation:
+class TestStarterDependencyValidation:
 
     def test_depends_on_unregistered_class_raises(self, app_context: ApplicationContext):
         from py_spring_core.core.application.context.application_context import (
             InvalidDependencyError,
         )
-        from py_spring_core.core.entities.entity_provider.entity_provider import EntityProvider
+        from py_spring_core.core.starter.py_spring_starter import PySpringStarter
 
         class UnregisteredDep(Component): ...
 
-        provider = EntityProvider(depends_on=[UnregisteredDep])
-        app_context.providers.append(provider)
+        starter = PySpringStarter(depends_on=[UnregisteredDep])
+        app_context.starters.append(starter)
 
         with pytest.raises(InvalidDependencyError, match="not found in the application context"):
-            app_context.validate_entity_providers()
+            app_context.validate_starters()
 
     def test_depends_on_non_app_entity_raises(self, app_context: ApplicationContext):
         from py_spring_core.core.application.context.application_context import (
             InvalidDependencyError,
         )
-        from py_spring_core.core.entities.entity_provider.entity_provider import EntityProvider
+        from py_spring_core.core.starter.py_spring_starter import PySpringStarter
 
         class NotAnEntity:
             pass
 
-        provider = EntityProvider(depends_on=[NotAnEntity])  # type: ignore
-        app_context.providers.append(provider)
+        starter = PySpringStarter(depends_on=[NotAnEntity])  # type: ignore
+        app_context.starters.append(starter)
 
         with pytest.raises(InvalidDependencyError, match="INVALID DEPENDENCY"):
-            app_context.validate_entity_providers()
+            app_context.validate_starters()
 
 
 # ============================================================================
