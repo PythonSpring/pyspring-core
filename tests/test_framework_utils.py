@@ -1,8 +1,15 @@
+import sys
+import types
+
 import pytest
 from abc import ABC, abstractmethod
 from typing import Type, Any
 
-from py_spring_core.core.utils import get_unimplemented_abstract_methods
+from py_spring_core.core.starter.py_spring_starter import PySpringStarter
+from py_spring_core.core.utils import (
+    discover_starters_from_packages,
+    get_unimplemented_abstract_methods,
+)
 
 
 class TestFrameworkUtils:
@@ -223,4 +230,160 @@ class TestFrameworkUtils:
         unimplemented = get_unimplemented_abstract_methods(IncompleteShutdownHandler)
         assert "on_timeout" in unimplemented
         assert "on_error" in unimplemented
-        assert "on_shutdown" not in unimplemented 
+        assert "on_shutdown" not in unimplemented
+
+
+def _make_module(name: str, source: str) -> types.ModuleType:
+    """Create an in-memory module, execute source in it, and register in sys.modules."""
+    module = types.ModuleType(name)
+    exec(source, module.__dict__)
+    sys.modules[name] = module
+    return module
+
+
+class TestDiscoverStartersFromPackages:
+    """Test suite for discover_starters_from_packages."""
+
+    def _create_fake_package(self, pkg_name: str, sub_modules: dict[str, str] | None = None):
+        """Helper to build a fake package with optional sub-modules in sys.modules.
+
+        Returns a list of module names to clean up after the test.
+        """
+        registered: list[str] = []
+
+        # Root package module (must have __path__ for walk_packages to recurse)
+        pkg = types.ModuleType(pkg_name)
+        pkg.__path__ = []  # non-filesystem package
+        pkg.__package__ = pkg_name
+        sys.modules[pkg_name] = pkg
+        registered.append(pkg_name)
+
+        if sub_modules:
+            for sub_name, source in sub_modules.items():
+                full_name = f"{pkg_name}.{sub_name}"
+                mod = _make_module(full_name, source)
+                mod.__package__ = pkg_name
+                setattr(pkg, sub_name, mod)
+                registered.append(full_name)
+
+        return registered
+
+    def test_discovers_starter_from_single_module(self, tmp_path):
+        """A package containing a PySpringStarter subclass is discovered."""
+        pkg_dir = tmp_path / "fake_starter_pkg"
+        pkg_dir.mkdir()
+        (pkg_dir / "__init__.py").write_text(
+            "from py_spring_core.core.starter.py_spring_starter import PySpringStarter\n"
+            "class MyStarter(PySpringStarter): pass\n"
+        )
+        sys.path.insert(0, str(tmp_path))
+        try:
+            result = discover_starters_from_packages(["fake_starter_pkg"])
+            assert len(result) == 1
+            assert result[0].__name__ == "MyStarter"
+        finally:
+            sys.path.remove(str(tmp_path))
+            sys.modules.pop("fake_starter_pkg", None)
+
+    def test_discovers_starters_from_nested_submodules(self, tmp_path):
+        """Starters in nested sub-packages are fully walked."""
+        pkg_dir = tmp_path / "nested_pkg"
+        pkg_dir.mkdir()
+        (pkg_dir / "__init__.py").write_text("")
+
+        sub_dir = pkg_dir / "sub"
+        sub_dir.mkdir()
+        (sub_dir / "__init__.py").write_text(
+            "from py_spring_core.core.starter.py_spring_starter import PySpringStarter\n"
+            "class SubStarter(PySpringStarter): pass\n"
+        )
+
+        sys.path.insert(0, str(tmp_path))
+        try:
+            result = discover_starters_from_packages(["nested_pkg"])
+            names = [cls.__name__ for cls in result]
+            assert "SubStarter" in names
+        finally:
+            sys.path.remove(str(tmp_path))
+            for key in list(sys.modules):
+                if key.startswith("nested_pkg"):
+                    del sys.modules[key]
+
+    def test_excludes_base_pyspringstarter(self, tmp_path):
+        """The PySpringStarter base class itself is never included."""
+        pkg_dir = tmp_path / "base_only_pkg"
+        pkg_dir.mkdir()
+        (pkg_dir / "__init__.py").write_text(
+            "from py_spring_core.core.starter.py_spring_starter import PySpringStarter\n"
+        )
+        sys.path.insert(0, str(tmp_path))
+        try:
+            result = discover_starters_from_packages(["base_only_pkg"])
+            assert len(result) == 0
+        finally:
+            sys.path.remove(str(tmp_path))
+            sys.modules.pop("base_only_pkg", None)
+
+    def test_returns_empty_for_no_starters(self, tmp_path):
+        """A package with no starter subclasses returns an empty list."""
+        pkg_dir = tmp_path / "no_starter_pkg"
+        pkg_dir.mkdir()
+        (pkg_dir / "__init__.py").write_text("X = 42\n")
+        sys.path.insert(0, str(tmp_path))
+        try:
+            result = discover_starters_from_packages(["no_starter_pkg"])
+            assert result == []
+        finally:
+            sys.path.remove(str(tmp_path))
+            sys.modules.pop("no_starter_pkg", None)
+
+    def test_skips_invalid_package_gracefully(self):
+        """An invalid package name logs a warning and does not raise."""
+        result = discover_starters_from_packages(["totally_nonexistent_pkg_12345"])
+        assert result == []
+
+    def test_handles_multiple_packages(self, tmp_path):
+        """Passing multiple package names returns starters from all of them."""
+        for name in ("multi_a", "multi_b"):
+            d = tmp_path / name
+            d.mkdir()
+            (d / "__init__.py").write_text(
+                "from py_spring_core.core.starter.py_spring_starter import PySpringStarter\n"
+                f"class Starter_{name}(PySpringStarter): pass\n"
+            )
+        sys.path.insert(0, str(tmp_path))
+        try:
+            result = discover_starters_from_packages(["multi_a", "multi_b"])
+            names = {cls.__name__ for cls in result}
+            assert names == {"Starter_multi_a", "Starter_multi_b"}
+        finally:
+            sys.path.remove(str(tmp_path))
+            for key in list(sys.modules):
+                if key.startswith("multi_a") or key.startswith("multi_b"):
+                    del sys.modules[key]
+
+    def test_no_duplicates_across_packages(self, tmp_path):
+        """A starter re-exported in multiple packages is only returned once."""
+        # Package A defines the starter
+        pkg_a = tmp_path / "dedup_a"
+        pkg_a.mkdir()
+        (pkg_a / "__init__.py").write_text(
+            "from py_spring_core.core.starter.py_spring_starter import PySpringStarter\n"
+            "class SharedStarter(PySpringStarter): pass\n"
+        )
+        # Package B re-exports it
+        pkg_b = tmp_path / "dedup_b"
+        pkg_b.mkdir()
+        (pkg_b / "__init__.py").write_text(
+            "from dedup_a import SharedStarter\n"
+        )
+        sys.path.insert(0, str(tmp_path))
+        try:
+            result = discover_starters_from_packages(["dedup_a", "dedup_b"])
+            assert len(result) == 1
+            assert result[0].__name__ == "SharedStarter"
+        finally:
+            sys.path.remove(str(tmp_path))
+            for key in list(sys.modules):
+                if key.startswith("dedup_"):
+                    del sys.modules[key]
