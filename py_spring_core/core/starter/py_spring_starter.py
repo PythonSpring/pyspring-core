@@ -25,6 +25,14 @@ class PySpringStarter:
     external_dependencies: list[Any] = field(default_factory=list)
     app_context: Optional["ApplicationContext"] = None
 
+    def on_configure(self) -> None:
+        """Override in subclasses to configure the starter before the IoC container is built.
+
+        Use this to register entities (append to component_classes, etc.)
+        or perform any pre-IoC setup.
+        """
+        ...
+
     def get_entities(self) -> list[Type[AppEntities]]:
         return [
             *self.component_classes,
@@ -36,4 +44,10 @@ class PySpringStarter:
     def set_context(self, app_context: "ApplicationContext") -> None:
         self.app_context = app_context
 
-    def starter_init(self) -> None: ...
+    def on_initialized(self) -> None:
+        """Override in subclasses for post-initialization logic.
+
+        Called by the framework after the IoC container is built, dependencies
+        are injected, and app_context is set.
+        """
+        ...

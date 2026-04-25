@@ -174,9 +174,17 @@ class PySpringApplication:
         logger.debug(f"[PROPERTIES INIT] Register properties: {_cls.__name__}")
         self.app_context.register_properties(_cls)
 
-    def _init_starters(self, starters: Iterable[PySpringStarter]) -> None:
+    def _configure_starters(self, starters: Iterable[PySpringStarter]) -> None:
         for starter in starters:
-            starter.starter_init()
+            starter.on_configure()
+
+    def _set_context_for_starters(self, starters: Iterable[PySpringStarter]) -> None:
+        for starter in starters:
+            starter.set_context(self.app_context)
+
+    def _notify_starters_initialized(self, starters: Iterable[PySpringStarter]) -> None:
+        for starter in starters:
+            starter.on_initialized()
 
     def _inject_application_context_to_context_required(
         self, classes: Iterable[Type[object]]
@@ -189,6 +197,7 @@ class PySpringApplication:
     def _prepare_injected_classes(self) -> Iterable[Type[object]]:
         scanned_classes = self._scan_classes_for_project()
         system_managed_classes = self._get_system_managed_classes()
+        self._configure_starters(self.starters)
         starter_entities = self._get_all_entities_from_starters(
             self.starters
         )
@@ -237,7 +246,8 @@ class PySpringApplication:
         self.app_context.set_all_file_paths(self.target_dir_absolute_file_paths)
         self.app_context.validate_starters()
         # after injecting all deps, lifecycle (init) can be called
-        self._init_starters(self.starters)
+        self._set_context_for_starters(self.starters)
+        self._notify_starters_initialized(self.starters)
         self._handle_singleton_components_life_cycle(ComponentLifeCycle.Init)
 
     def _handle_singleton_components_life_cycle(
