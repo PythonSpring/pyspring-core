@@ -189,6 +189,10 @@ class PySpringApplication:
         for starter in starters:
             starter.on_initialized()
 
+    def _notify_starters_destroyed(self, starters: Iterable[PySpringStarter]) -> None:
+        for starter in starters:
+            starter.finish_destruction_cycle()
+
     def _inject_application_context_to_context_required(
         self, classes: Iterable[Type[object]]
     ) -> None:
@@ -419,9 +423,8 @@ class PySpringApplication:
             if self.app_config.server_config.enabled:
                 self._run_server()
         finally:
-            # Handle component lifecycle destruction
             self._handle_singleton_components_life_cycle(ComponentLifeCycle.Destruction)
-            # Handle graceful shutdown completion
+            self._notify_starters_destroyed(self.starters)
             if self.shutdown_handler:
                 self.shutdown_handler.complete_shutdown()
             
