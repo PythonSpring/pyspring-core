@@ -26,7 +26,7 @@
 - Modify: `py_spring_core/core/starter/py_spring_starter.py`
 - Test: `tests/test_starter.py`
 
-- [ ] **Step 1: Write failing tests for `on_destroy` and `finish_destruction_cycle`**
+- [x] **Step 1: Write failing tests for `on_destroy` and `finish_destruction_cycle`**
 
 Add to `tests/test_starter.py`. First, add a new test helper class after the existing `ContextAwareStarter` (line 59):
 
@@ -52,13 +52,13 @@ Then add these tests inside the existing `TestStarterLifecycle` class (after lin
         assert starter.destroyed
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m pytest tests/test_starter.py::TestStarterLifecycle::test_on_destroy_default_is_noop tests/test_starter.py::TestStarterLifecycle::test_finish_destruction_cycle_calls_on_destroy -v`
 
 Expected: FAIL — `AttributeError: 'PySpringStarter' object has no attribute 'on_destroy'` and `'finish_destruction_cycle'`
 
-- [ ] **Step 3: Implement `on_destroy` and `finish_destruction_cycle` on `PySpringStarter`**
+- [x] **Step 3: Implement `on_destroy` and `finish_destruction_cycle` on `PySpringStarter`**
 
 In `py_spring_core/core/starter/py_spring_starter.py`:
 
@@ -84,13 +84,13 @@ from typing import Any, Optional, Type, final
         self.on_destroy()
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `python -m pytest tests/test_starter.py::TestStarterLifecycle -v`
 
 Expected: All tests in `TestStarterLifecycle` PASS (including both new tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add py_spring_core/core/starter/py_spring_starter.py tests/test_starter.py
@@ -108,7 +108,7 @@ starters can clean up resources during application shutdown."
 - Modify: `py_spring_core/core/application/py_spring_application.py`
 - Test: `tests/test_starter.py`
 
-- [ ] **Step 1: Write failing test for teardown ordering**
+- [x] **Step 1: Write failing test for teardown ordering**
 
 Add a new test helper class to `tests/test_starter.py` after `DestroyAwareStarter`:
 
@@ -195,13 +195,13 @@ from py_spring_core.core.entities.component.component import Component, Componen
 
 (Replace the existing `Component`-only import on line 12.)
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python -m pytest tests/test_starter.py::TestStarterTeardownOrdering::test_on_destroy_called_after_component_pre_destroy -v`
 
 Expected: FAIL — `AttributeError: 'PySpringApplication' object has no attribute '_notify_starters_destroyed'`
 
-- [ ] **Step 3: Implement `_notify_starters_destroyed` and wire into `run()`**
+- [x] **Step 3: Implement `_notify_starters_destroyed` and wire into `run()`**
 
 In `py_spring_core/core/application/py_spring_application.py`:
 
@@ -234,19 +234,19 @@ With:
                 self.shutdown_handler.complete_shutdown()
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `python -m pytest tests/test_starter.py::TestStarterTeardownOrdering -v`
 
 Expected: PASS
 
-- [ ] **Step 5: Run full test suite to check for regressions**
+- [x] **Step 5: Run full test suite to check for regressions**
 
 Run: `python -m pytest tests/ -v`
 
 Expected: All tests PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add py_spring_core/core/application/py_spring_application.py tests/test_starter.py
