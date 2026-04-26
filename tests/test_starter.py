@@ -63,6 +63,13 @@ class ContextAwareStarter(PySpringStarter):
         self.context_seen_in_init = self.app_context
 
 
+class DestroyAwareStarter(PySpringStarter):
+    destroyed: bool = False
+
+    def on_destroy(self) -> None:
+        self.destroyed = True
+
+
 class TestStarterLifecycle:
     def test_on_configure_populates_entities(self):
         starter = ConfigurableStarter()
@@ -93,3 +100,13 @@ class TestStarterLifecycle:
         starter.set_context(mock_ctx)
         starter.on_initialized()
         assert starter.context_seen_in_init is mock_ctx
+
+    def test_on_destroy_default_is_noop(self):
+        starter = PySpringStarter()
+        starter.on_destroy()
+
+    def test_finish_destruction_cycle_calls_on_destroy(self):
+        starter = DestroyAwareStarter()
+        assert not starter.destroyed
+        starter.finish_destruction_cycle()
+        assert starter.destroyed

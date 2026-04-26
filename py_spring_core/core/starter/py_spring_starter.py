@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Optional, Type
+from typing import Any, Optional, Type, final
 
 from py_spring_core.core.application.commons import AppEntities
 from py_spring_core.core.entities.bean_collection.bean_collection import BeanCollection
@@ -51,3 +51,15 @@ class PySpringStarter:
         are injected, and app_context is set.
         """
         ...
+
+    def on_destroy(self) -> None:
+        """Override in subclasses for cleanup logic before the starter is destroyed.
+
+        Called by the framework during application shutdown, after all singleton
+        components have been destroyed.
+        """
+        ...
+
+    @final
+    def finish_destruction_cycle(self) -> None:
+        self.on_destroy()
