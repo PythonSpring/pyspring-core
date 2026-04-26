@@ -70,18 +70,17 @@ class DestroyAwareStarter(PySpringStarter):
         self.destroyed = True
 
 
-class OrderTrackingComponent(Component):
-    order_log: list[str] = []
+_teardown_log: list[str] = []
 
+
+class OrderTrackingComponent(Component):
     def pre_destroy(self) -> None:
-        OrderTrackingComponent.order_log.append("component_pre_destroy")
+        _teardown_log.append("component_pre_destroy")
 
 
 class OrderTrackingStarter(PySpringStarter):
-    order_log: list[str] = []
-
     def on_destroy(self) -> None:
-        OrderTrackingStarter.order_log.append("starter_on_destroy")
+        _teardown_log.append("starter_on_destroy")
 
 
 class TestStarterLifecycle:
@@ -132,53 +131,33 @@ class TestStarterTeardownOrdering:
             PySpringApplication,
         )
 
-        OrderTrackingComponent.order_log = []
-        OrderTrackingStarter.order_log = []
-        shared_log: list[str] = []
+        _teardown_log.clear()
 
-        original_component_pre_destroy = OrderTrackingComponent.pre_destroy
-        original_starter_on_destroy = OrderTrackingStarter.on_destroy
+        starter = OrderTrackingStarter(
+            component_classes=[OrderTrackingComponent],
+        )
+        app = PySpringApplication.__new__(PySpringApplication)
+        starters: list[PySpringStarter] = [starter]
+        app.starters = starters
 
-        def tracked_component_pre_destroy(self):
-            shared_log.append("component_pre_destroy")
-            original_component_pre_destroy(self)
+        server = FastAPI()
+        app.app_context = ApplicationContext(
+            ApplicationContextConfig(properties_path=""), server=server
+        )
+        app.app_context.register_component(OrderTrackingComponent)
+        app.app_context.init_ioc_container()
+        app.app_context.inject_dependencies_for_app_entities()
+        app._handle_singleton_components_life_cycle(
+            ComponentLifeCycle.Init
+        )
 
-        def tracked_starter_on_destroy(self):
-            shared_log.append("starter_on_destroy")
-            original_starter_on_destroy(self)
+        # Simulate teardown
+        app._handle_singleton_components_life_cycle(
+            ComponentLifeCycle.Destruction
+        )
+        app._notify_starters_destroyed(app.starters)
 
-        OrderTrackingComponent.pre_destroy = tracked_component_pre_destroy
-        OrderTrackingStarter.on_destroy = tracked_starter_on_destroy
-
-        try:
-            starter = OrderTrackingStarter(
-                component_classes=[OrderTrackingComponent],
-            )
-            app = PySpringApplication.__new__(PySpringApplication)
-            starters: list[PySpringStarter] = [starter]
-            app.starters = starters
-
-            server = FastAPI()
-            app.app_context = ApplicationContext(
-                ApplicationContextConfig(properties_path=""), server=server
-            )
-            app.app_context.register_component(OrderTrackingComponent)
-            app.app_context.init_ioc_container()
-            app.app_context.inject_dependencies_for_app_entities()
-            app._handle_singleton_components_life_cycle(
-                ComponentLifeCycle.Init
-            )
-
-            # Simulate teardown
-            app._handle_singleton_components_life_cycle(
-                ComponentLifeCycle.Destruction
-            )
-            app._notify_starters_destroyed(app.starters)
-
-            assert shared_log == [
-                "component_pre_destroy",
-                "starter_on_destroy",
-            ]
-        finally:
-            OrderTrackingComponent.pre_destroy = original_component_pre_destroy
-            OrderTrackingStarter.on_destroy = original_starter_on_destroy
+        assert _teardown_log == [
+            "component_pre_destroy",
+            "starter_on_destroy",
+        ]
