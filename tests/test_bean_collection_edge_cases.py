@@ -26,6 +26,7 @@ from py_spring_core.core.entities.bean_collection.bean_collection import (
     InvalidBeanError,
 )
 from py_spring_core.core.entities.component.component import Component
+from py_spring_core.core.entities.properties.properties import Properties
 
 
 @pytest.fixture
@@ -240,6 +241,41 @@ class TestBeanRetrievalFromContext:
 
         bean = app_context.must_get_bean(_ExternalLib)
         assert isinstance(bean, _ExternalLib)
+
+
+class _VendorProperties(Properties):
+    __key__ = "vendor"
+    host: str = ""
+
+
+class _VendorClient:
+    def __init__(self, host: str):
+        self.host = host
+
+
+class _VendorBeanCollection(BeanCollection):
+    vendor_properties: _VendorProperties
+
+    @classmethod
+    def create_vendor_client(cls) -> _VendorClient:
+        return _VendorClient(host=cls.vendor_properties.host)
+
+
+class TestBeanCollectionPropertiesInjection:
+    """Properties declared on a BeanCollection must be available in classmethods."""
+
+    def test_properties_injected_before_scan_beans(self, app_context: ApplicationContext):
+        """BeanCollection classmethods can access properties injected at the class level."""
+        props = _VendorProperties(host="localhost:8080")
+        app_context.container_manager.properties_classes["vendor"] = _VendorProperties
+        app_context.container_manager.properties_instances["vendor"] = props
+
+        app_context.register_bean_collection(_VendorBeanCollection)
+        app_context.init_ioc_container()
+
+        bean = app_context.get_bean(_VendorClient)
+        assert bean is not None
+        assert bean.host == "localhost:8080"
 
 
 class TestBeanInjectionIntoComponents:
