@@ -552,13 +552,18 @@ class BeanManager:
         return bean
 
     def _inject_bean_collection_dependencies(
-        self, bean_collection_instance: BeanCollection
+        self, bean_collection_cls: Type[BeanCollection]
     ) -> None:
-        """Inject dependencies for a bean collection instance."""
+        """Inject dependencies for a bean collection class.
+
+        BeanCollection methods (scan_beans, create_*) are classmethods that
+        access dependencies via ``cls``, so properties must be set on the
+        class itself rather than on an instance.
+        """
         logger.info(
-            f"[BEAN COLLECTION DEPENDENCY INJECTION] Injecting dependencies for {bean_collection_instance.get_name()}"
+            f"[BEAN COLLECTION DEPENDENCY INJECTION] Injecting dependencies for {bean_collection_cls.get_name()}"
         )
-        self.dependency_injector.inject_dependencies(bean_collection_instance)
+        self.dependency_injector.inject_dependencies(bean_collection_cls)
 
     def _validate_bean_view(self, view: BeanView, collection_name: str) -> None:
         """Validate a bean view before adding it to the container."""
@@ -583,14 +588,13 @@ class BeanManager:
                 f"[INITIALIZING SINGLETON BEAN] Init singleton bean: {bean_collection_cls_name}"
             )
 
-            collection = bean_collection_cls()
-            self._inject_bean_collection_dependencies(collection)
+            self._inject_bean_collection_dependencies(bean_collection_cls)
 
-            bean_views = collection.scan_beans()
+            bean_views = bean_collection_cls.scan_beans()
             for view in bean_views:
                 if view.bean_name in self.container_manager.bean_instances:
                     continue
-                self._validate_bean_view(view, collection.get_name())
+                self._validate_bean_view(view, bean_collection_cls.get_name())
                 self.container_manager.bean_instances[
                     view.bean_name
                 ] = view.bean
