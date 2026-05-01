@@ -37,7 +37,16 @@ class ModuleImporter:
         if cache_key in self._module_cache:
             logger.debug(f"[MODULE CACHE] Using cached module: {module_name}")
             return self._module_cache[cache_key]
-        
+
+        # Check if already imported by Python's standard import system
+        # (e.g., triggered by another module's "from X import Y" statement)
+        if module_name in sys.modules:
+            logger.debug(f"[MODULE CACHE] Using sys.modules entry for: {module_name}")
+            module = sys.modules[module_name]
+            self._module_cache[cache_key] = module
+            self._registered_module_names.add(module_name)
+            return module
+
         logger.info(f"[MODULE IMPORT] Import module path: {resolved_path}")
         
         # Create a module specification
