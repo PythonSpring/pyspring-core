@@ -434,16 +434,46 @@ class ComponentManager:
                 result.append(subclass)
         return result
 
+    def _find_partially_implemented_subclasses(
+        self, component_cls: Type[ABC]
+    ) -> list[tuple[type, set[str]]]:
+        """Find Component subclasses that still have unimplemented abstract methods, recursively."""
+        result: list[tuple[type, set[str]]] = []
+        for subclass in component_cls.__subclasses__():
+            if not issubclass(subclass, Component):
+                continue
+            unimplemented = getattr(subclass, "__abstractmethods__", frozenset())
+            if unimplemented:
+                # Only report leaf-level partial subclasses (no further subclasses of their own)
+                deeper = self._find_partially_implemented_subclasses(subclass)
+                if deeper:
+                    result.extend(deeper)
+                else:
+                    result.append((subclass, set(unimplemented)))
+        return result
+
     def _init_abstract_component_subclasses(self, component_cls: Type[ABC]) -> None:
         """Initialize singleton instances for abstract component subclasses."""
         component_classes = self._get_abstract_class_component_subclasses(component_cls)
 
         if not component_classes:
-            message = (
-                f"[ABSTRACT CLASS ERROR] Abstract class {component_cls.__name__} "
-                f"has no registered subclasses. Register at least one concrete "
-                f"implementation as a Component."
-            )
+            partial_subclasses = self._find_partially_implemented_subclasses(component_cls)
+            if partial_subclasses:
+                details = "; ".join(
+                    f"{subcls.__name__} is missing: {', '.join(sorted(methods))}"
+                    for subcls, methods in partial_subclasses
+                )
+                message = (
+                    f"[ABSTRACT CLASS ERROR] Abstract class {component_cls.__name__} "
+                    f"has subclasses with unimplemented abstract methods. {details}. "
+                    f"Implement all abstract methods to make the subclass(es) concrete."
+                )
+            else:
+                message = (
+                    f"[ABSTRACT CLASS ERROR] Abstract class {component_cls.__name__} "
+                    f"has no registered subclasses. Register at least one concrete "
+                    f"implementation as a Component."
+                )
             logger.error(message)
             raise ValueError(message)
 
