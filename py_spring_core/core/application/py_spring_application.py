@@ -82,7 +82,6 @@ class PySpringApplication:
         self._template_generator.generate_app_config_file_template_if_not_exists()
         self._template_generator.generate_app_properties_file_template_if_not_exists()
 
-        self._model_classes: set[type[object]] = set()
         self.app_config_repo = ApplicationConfigRepository(app_config_path)
         self.app_config = self.app_config_repo.get_config()
         self.file_path_scanner = FilePathScanner(

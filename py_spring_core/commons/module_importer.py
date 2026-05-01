@@ -1,5 +1,6 @@
 import importlib.util
 import inspect
+import sys
 from pathlib import Path
 from typing import Any, Iterable, Type, Optional
 
@@ -15,6 +16,8 @@ class ModuleImporter:
     def __init__(self) -> None:
         # Module cache to prevent duplicate imports
         self._module_cache: dict[str, Any] = {}
+        # Track module names registered in sys.modules so clear_cache can clean them up
+        self._registered_module_names: set[str] = set()
 
     def import_module_from_path(self, file_path: str) -> Optional[Any]:
         """
@@ -49,6 +52,11 @@ class ModuleImporter:
             logger.warning(f"[MODULE IMPORT] No loader found for {module_name}")
             return None
 
+        # Register in sys.modules BEFORE exec_module so that circular
+        # imports within the module resolve to this same object.
+        sys.modules[module_name] = module
+        self._registered_module_names.add(module_name)
+
         # Execute the module in its own namespace
         logger.info(f"[MODULE IMPORT] Import module: {module_name}")
         try:
@@ -58,6 +66,9 @@ class ModuleImporter:
             self._module_cache[cache_key] = module
             return module
         except Exception as error:
+            # Remove from sys.modules on failure to avoid leaving a broken module
+            sys.modules.pop(module_name, None)
+            self._registered_module_names.discard(module_name)
             logger.warning(f"[MODULE IMPORT] Failed to import {module_name}: {error}")
             raise error
 
@@ -123,7 +134,10 @@ class ModuleImporter:
         return returned_target_classes
 
     def clear_cache(self) -> None:
-        """Clear the module cache. Useful for testing or when you need to force re-import."""
+        """Clear the module cache and remove registered entries from sys.modules."""
+        for module_name in self._registered_module_names:
+            sys.modules.pop(module_name, None)
+        self._registered_module_names.clear()
         self._module_cache.clear()
 
     def get_cache_size(self) -> int:
