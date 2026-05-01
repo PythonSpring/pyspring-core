@@ -292,6 +292,51 @@ class TestClass:
                 sys.modules.pop("repro_model", None)
                 sys.modules.pop("repro_service", None)
 
+    def test_standard_import_before_module_importer_returns_same_class(self):
+        """Test that ModuleImporter reuses a module already in sys.modules.
+
+        When a service is scanned before its model dependency, the service's
+        standard 'from X import Y' populates sys.modules first. When
+        ModuleImporter later scans the model file, it must detect the existing
+        sys.modules entry and reuse it instead of creating a duplicate module.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model_file = os.path.join(tmpdir, "reverse_model.py")
+            with open(model_file, "w") as f:
+                f.write("class Product:\n    pass\n")
+
+            service_file = os.path.join(tmpdir, "reverse_service.py")
+            with open(service_file, "w") as f:
+                f.write(
+                    "from reverse_model import Product\n"
+                    "product_cls = Product\n"
+                )
+
+            sys.path.insert(0, tmpdir)
+            try:
+                # Step 1: ModuleImporter loads the SERVICE first.
+                # During exec_module, Python's standard import loads reverse_model
+                # into sys.modules.
+                service_module = self.importer.import_module_from_path(service_file)
+                product_from_service = service_module.product_cls
+
+                # Step 2: ModuleImporter loads the MODEL file.
+                # It must detect that "reverse_model" is already in sys.modules
+                # and return that module instead of creating a new one.
+                model_module = self.importer.import_module_from_path(model_file)
+                product_from_importer = model_module.Product
+
+                assert product_from_importer is product_from_service, (
+                    f"Product from ModuleImporter (id={id(product_from_importer)}) "
+                    f"differs from Product loaded by standard import in service "
+                    f"(id={id(product_from_service)}). ModuleImporter did not "
+                    f"check sys.modules before creating a new module."
+                )
+            finally:
+                sys.path.remove(tmpdir)
+                sys.modules.pop("reverse_model", None)
+                sys.modules.pop("reverse_service", None)
+
     def test_clear_cache_removes_sys_modules_entries(self):
         """Test that clear_cache also removes entries from sys.modules."""
         with tempfile.TemporaryDirectory() as tmpdir:
