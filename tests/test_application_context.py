@@ -1,3 +1,5 @@
+from abc import ABC, abstractmethod
+
 import pytest
 from fastapi import FastAPI
 
@@ -212,3 +214,34 @@ class TestApplicationContext:
         app_context.inject_dependencies_for_instance(controller)
         assert hasattr(controller, "test_component")
         assert isinstance(controller.test_component, TestComponent)
+
+    def test_abstract_component_with_partially_implemented_subclass_gives_clear_error(
+        self, app_context: ApplicationContext
+    ):
+        """When a subclass of an abstract Component exists but doesn't implement
+        all abstract methods, the error message should mention the missing methods
+        and the subclass name — not the misleading 'has no registered subclasses'."""
+
+        class AbstractCrawler(Component, ABC):
+            @abstractmethod
+            def crawl(self) -> None: ...
+
+            @abstractmethod
+            def parse(self) -> None: ...
+
+        class MyCrawler(AbstractCrawler):
+            def crawl(self) -> None:
+                pass
+            # parse() is NOT implemented — MyCrawler is still abstract
+
+        app_context.register_component(AbstractCrawler)
+
+        with pytest.raises(ValueError, match="MyCrawler") as exc_info:
+            app_context.component_manager.init_singleton_components()
+
+        error_msg = str(exc_info.value)
+        # The error should mention the missing method, not just "no registered subclasses"
+        assert "parse" in error_msg, (
+            f"Error message should mention the unimplemented method 'parse', "
+            f"but got: {error_msg}"
+        )

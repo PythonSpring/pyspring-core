@@ -147,7 +147,7 @@ class TestAbstractClassEdgeCases:
 
         app_context.register_component(BaseService)
 
-        with pytest.raises(ValueError, match="has no registered subclasses"):
+        with pytest.raises(ValueError, match="PartialImpl is missing: process"):
             app_context.init_ioc_container()
 
     def test_abstract_class_multiple_impls_without_qualifier_raises(self, app_context: ApplicationContext):
