@@ -1,7 +1,6 @@
+import sys
 import tempfile
 import os
-from pathlib import Path
-from typing import Type
 
 import pytest
 
@@ -222,6 +221,89 @@ class TestClass:
         try:
             with pytest.raises(SyntaxError):
                 self.importer.import_module_from_path(temp_file_path)
-            
+
         finally:
-            os.unlink(temp_file_path) 
+            os.unlink(temp_file_path)
+
+    def test_import_registers_module_in_sys_modules(self):
+        """Test that imported modules are registered in sys.modules.
+
+        Without sys.modules registration, standard Python imports in scanned
+        modules would re-execute the module, creating duplicate class objects.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a module file
+            model_file = os.path.join(tmpdir, "my_model.py")
+            with open(model_file, "w") as f:
+                f.write("class Product:\n    pass\n")
+
+            module = self.importer.import_module_from_path(model_file)
+            assert module is not None
+
+            # The module should be findable in sys.modules by its stem name
+            assert "my_model" in sys.modules
+            assert sys.modules["my_model"] is module
+
+            # Clean up sys.modules
+            sys.modules.pop("my_model", None)
+
+    def test_standard_import_returns_same_class_after_module_importer(self):
+        """Test that standard Python import returns the same class object as ModuleImporter.
+
+        When ModuleImporter loads a module and a subsequently loaded module
+        imports from it via standard 'from X import Y', Python should find
+        the already-loaded module in sys.modules and return the same class
+        object, preserving class identity across import mechanisms.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create model file
+            model_file = os.path.join(tmpdir, "repro_model.py")
+            with open(model_file, "w") as f:
+                f.write("class Product:\n    pass\n")
+
+            # Create service file that imports from model via standard import
+            service_file = os.path.join(tmpdir, "repro_service.py")
+            with open(service_file, "w") as f:
+                f.write(
+                    "from repro_model import Product\n"
+                    "product_cls = Product\n"
+                )
+
+            # Add tmpdir to sys.path so standard imports can resolve
+            sys.path.insert(0, tmpdir)
+            try:
+                # Step 1: ModuleImporter loads the model
+                model_module = self.importer.import_module_from_path(model_file)
+                product_from_importer = model_module.Product
+
+                # Step 2: ModuleImporter loads the service (which does 'from repro_model import Product')
+                service_module = self.importer.import_module_from_path(service_file)
+                product_from_service = service_module.product_cls
+
+                # These MUST be the same class object
+                assert product_from_importer is product_from_service, (
+                    f"Product class loaded by ModuleImporter (id={id(product_from_importer)}) "
+                    f"differs from Product class loaded by standard import in service "
+                    f"(id={id(product_from_service)}). This means sys.modules was not "
+                    f"populated by ModuleImporter."
+                )
+            finally:
+                sys.path.remove(tmpdir)
+                sys.modules.pop("repro_model", None)
+                sys.modules.pop("repro_service", None)
+
+    def test_clear_cache_removes_sys_modules_entries(self):
+        """Test that clear_cache also removes entries from sys.modules."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model_file = os.path.join(tmpdir, "cache_test_model.py")
+            with open(model_file, "w") as f:
+                f.write("class Foo:\n    pass\n")
+
+            self.importer.import_module_from_path(model_file)
+
+            # Module should be in sys.modules after import
+            assert "cache_test_model" in sys.modules
+
+            # After clearing cache, it should be removed from sys.modules too
+            self.importer.clear_cache()
+            assert "cache_test_model" not in sys.modules 
