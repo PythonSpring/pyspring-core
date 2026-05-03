@@ -351,4 +351,54 @@ class TestClass:
 
             # After clearing cache, it should be removed from sys.modules too
             self.importer.clear_cache()
-            assert "cache_test_model" not in sys.modules 
+            assert "cache_test_model" not in sys.modules
+
+    def test_sys_modules_name_collision_returns_correct_module(self):
+        """Test that a sys.modules entry with the same stem name but different
+        file path is NOT incorrectly reused.
+
+        Scenario: Two different files share the same stem name (e.g.
+        ``dir_a/models.py`` and ``dir_b/models.py``). If ``dir_a/models.py``
+        is already in ``sys.modules`` under the key ``"models"``, importing
+        ``dir_b/models.py`` must NOT return the ``dir_a`` module. It should
+        create and execute a fresh module for ``dir_b/models.py``.
+
+        The old implementation only checked ``module_name in sys.modules``
+        without verifying the file path, which caused it to silently return
+        the wrong module.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create two directories each with a file that has the same stem name
+            dir_a = os.path.join(tmpdir, "dir_a")
+            dir_b = os.path.join(tmpdir, "dir_b")
+            os.makedirs(dir_a)
+            os.makedirs(dir_b)
+
+            file_a = os.path.join(dir_a, "collision.py")
+            with open(file_a, "w") as f:
+                f.write("SOURCE = 'dir_a'\n")
+
+            file_b = os.path.join(dir_b, "collision.py")
+            with open(file_b, "w") as f:
+                f.write("SOURCE = 'dir_b'\n")
+
+            try:
+                # Import the first file — this puts "collision" into sys.modules
+                module_a = self.importer.import_module_from_path(file_a)
+                assert module_a.SOURCE == "dir_a"
+                assert "collision" in sys.modules
+
+                # Now import the second file which has the same stem "collision"
+                # but lives in a different directory.
+                module_b = self.importer.import_module_from_path(file_b)
+
+                # The second module MUST NOT be the same object as the first.
+                # It must have been freshly loaded from dir_b.
+                assert module_b.SOURCE == "dir_b", (
+                    f"Expected SOURCE='dir_b' but got SOURCE='{module_b.SOURCE}'. "
+                    f"ModuleImporter incorrectly reused the sys.modules entry from "
+                    f"a different file path with the same stem name."
+                )
+                assert module_a is not module_b
+            finally:
+                sys.modules.pop("collision", None)
