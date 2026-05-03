@@ -38,17 +38,22 @@ class ModuleImporter:
             logger.debug(f"[MODULE CACHE] Using cached module: {module_name}")
             return self._module_cache[cache_key]
 
-        # Check if already imported by Python's standard import system
-        # (e.g., triggered by another module's "from X import Y" statement)
-        if module_name in sys.modules:
-            logger.debug(f"[MODULE CACHE] Using sys.modules entry for: {module_name}")
-            module = sys.modules[module_name]
-            self._module_cache[cache_key] = module
-            self._registered_module_names.add(module_name)
-            return module
+        # Check if module was already imported into sys.modules (e.g. by
+        # another module's ``import`` statement) from the same file path.
+        # Reuse it to avoid executing the module a second time, which would
+        # create duplicate class objects.
+        existing = sys.modules.get(module_name)
+        if existing is not None:
+            existing_file = getattr(existing, "__file__", None)
+            if existing_file and Path(existing_file).resolve() == resolved_path:
+                logger.debug(
+                    f"[MODULE CACHE] Reusing module from sys.modules: {module_name}"
+                )
+                self._module_cache[cache_key] = existing
+                self._registered_module_names.add(module_name)
+                return existing
 
         logger.info(f"[MODULE IMPORT] Import module path: {resolved_path}")
-        
         # Create a module specification
         spec = importlib.util.spec_from_file_location(module_name, resolved_path)
         if spec is None:
