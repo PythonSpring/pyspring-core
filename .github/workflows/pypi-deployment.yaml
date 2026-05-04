@@ -17,57 +17,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install PDM
-        run: |
-          python -m pip install --upgrade pip
-          pip install pdm twine
-
-      - name: Extract version
-        id: version
-        run: |
-          VERSION=$(cat py_spring_core/__version__.py | sed -n 's/^__version__ = "\(.*\)"/\1/p')
-          if [ -z "$VERSION" ]; then
-            echo "ERROR: Failed to extract version from __version__.py"
-            exit 1
-          fi
-          echo "Detected version: $VERSION"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Check if version exists on PyPI
-        id: check
-        run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/py-spring-core/${{ steps.version.outputs.version }}/json")
-          if [ "$STATUS" = "200" ]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Skip if version already published
-        if: steps.check.outputs.exists == 'true'
-        run: |
-          echo "Version ${{ steps.version.outputs.version }} already exists on PyPI, skipping."
-
-      - name: Install dependencies
-        if: steps.check.outputs.exists == 'false'
-        run: pdm install
-
-      - name: Run tests
-        if: steps.check.outputs.exists == 'false'
-        run: pdm run pytest
-
-      - name: Build the package
-        if: steps.check.outputs.exists == 'false'
-        run: pdm build
-
       - name: Publish to PyPI
-        if: steps.check.outputs.exists == 'false'
-        env:
-          TWINE_USERNAME: "__token__"
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: twine upload --verbose dist/*
+        uses: PythonSpring/actions/pypi-publish@main
+        with:
+          version-file: py_spring_core/__version__.py
+          pypi-package-name: py-spring-core
+          pypi-token: ${{ secrets.PYPI_PASSWORD }}
