@@ -215,6 +215,39 @@ class TestApplicationContext:
         assert hasattr(controller, "test_component")
         assert isinstance(controller.test_component, TestComponent)
 
+    def test_component_depending_on_bean_whose_type_is_abc_subclass(
+        self, app_context: ApplicationContext
+    ):
+        """When a Component depends on a bean whose type is an ABC subclass
+        (e.g. redis.Redis inherits from ABC via Protocol), get_component should
+        return None and the bean should be resolved via get_bean instead of
+        crashing with AttributeError on get_name()."""
+
+        class ExternalClient(ABC):
+            def execute(self) -> str:
+                return "executed"
+
+        class ConcreteClient(ExternalClient):
+            pass
+
+        class ClientBeans(BeanCollection):
+            @classmethod
+            def create_concrete_client(cls) -> ConcreteClient:
+                return ConcreteClient()
+
+        class MyComponent(Component):
+            client: ConcreteClient
+
+        app_context.register_component(MyComponent)
+        app_context.register_bean_collection(ClientBeans)
+        app_context.init_ioc_container()
+        app_context.inject_dependencies_for_app_entities()
+
+        my_component = app_context.get_component(MyComponent)
+        assert my_component is not None
+        assert isinstance(my_component.client, ConcreteClient)
+        assert my_component.client.execute() == "executed"
+
     def test_abstract_component_with_partially_implemented_subclass_gives_clear_error(
         self, app_context: ApplicationContext
     ):

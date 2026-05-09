@@ -371,6 +371,11 @@ class ComponentManager:
         if not issubclass(component_cls, (Component, ABC)):
             return None
 
+        if not issubclass(component_cls, Component) and not getattr(
+            component_cls, "__abstractmethods__", None
+        ):
+            return None
+
         target_cls_name = self._determine_target_cls_name(component_cls, qualifier)
 
         if target_cls_name not in self.container_manager.component_classes:
