@@ -4,6 +4,7 @@ from typing import Any, Callable, Type
 import cachetools
 import yaml
 
+from py_spring_core.core.entities.properties.env_var_resolver import EnvVarResolver
 from py_spring_core.core.entities.properties.properties import Properties
 
 
@@ -71,6 +72,7 @@ class _PropertiesLoader:
         properties_dict = self._load_properties_dict_from_file_content(
             self.file_extension, self.properties_file_content
         )
+        properties_dict = EnvVarResolver.resolve_dict(properties_dict)
         properties: dict[str, Properties] = {}
         for key, value in properties_dict.items():
             if key not in self.properties_class_map.keys():
