@@ -84,3 +84,78 @@ class TestPropertiesLoader:
         loader = _PropertiesLoader("test.json", [])
         properties = loader.load_properties()
         assert properties == {}
+
+
+import json
+import os
+import tempfile
+
+
+class TestPropertiesLoaderEnvVarResolution:
+    def _create_temp_file(self, content: str, suffix: str) -> str:
+        fd, path = tempfile.mkstemp(suffix=suffix)
+        with os.fdopen(fd, "w") as f:
+            f.write(content)
+        return path
+
+    def test_env_vars_resolved_in_yaml(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("TEST_DB_HOST", "prod-server")
+        monkeypatch.setenv("TEST_DB_PORT", "3306")
+
+        class DbProps(Properties):
+            __key__ = "database"
+            host: str
+            port: int
+
+        content = "database:\n  host: ${TEST_DB_HOST}\n  port: ${TEST_DB_PORT}\n"
+        path = self._create_temp_file(content, ".yaml")
+
+        try:
+            loader = _PropertiesLoader(path, [DbProps])
+            result = loader.load_properties()
+            assert result["database"].host == "prod-server"
+            assert result["database"].port == 3306
+        finally:
+            os.unlink(path)
+
+    def test_env_vars_with_defaults_in_json(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.delenv("OPTIONAL_HOST", raising=False)
+
+        class ServerProps(Properties):
+            __key__ = "server"
+            host: str
+            port: int
+
+        content = json.dumps({
+            "server": {"host": "${OPTIONAL_HOST:localhost}", "port": 8080}
+        })
+        path = self._create_temp_file(content, ".json")
+
+        try:
+            loader = _PropertiesLoader(path, [ServerProps])
+            result = loader.load_properties()
+            assert result["server"].host == "localhost"
+            assert result["server"].port == 8080
+        finally:
+            os.unlink(path)
+
+    def test_missing_env_var_raises_in_loader(self, monkeypatch: pytest.MonkeyPatch):
+        from py_spring_core.core.entities.properties.env_var_resolver import (
+            EnvVarNotFoundError,
+        )
+
+        monkeypatch.delenv("REQUIRED_SECRET", raising=False)
+
+        class SecretProps(Properties):
+            __key__ = "secrets"
+            api_key: str
+
+        content = json.dumps({"secrets": {"api_key": "${REQUIRED_SECRET}"}})
+        path = self._create_temp_file(content, ".json")
+
+        try:
+            loader = _PropertiesLoader(path, [SecretProps])
+            with pytest.raises(EnvVarNotFoundError, match="REQUIRED_SECRET"):
+                loader.load_properties()
+        finally:
+            os.unlink(path)
